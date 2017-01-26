@@ -28,42 +28,63 @@ class TFKernel(object):
     Abstract class for kernels where inputs are TensorFlow variables.
     This is useful, for instance, for automatic differentiation of the kernel 
     with respect to one input argument.
+
+    It is possible to automatically implement eval() from Kernel class as well.
+    However, this can be slow due to the overhead of TensorFlow.
     """
     __metaclass__ = ABCMeta
 
     # TensorFlow variables for this class. Need to build them only once.
+    # A dictionary: variable name |-> TensorFlow variable.
     tf_vars = None
+    tf_parameters = None
 
-    @staticmethod
-    def build_graph():
-       if TFKernel.tf_vars is None:
+    @classmethod
+    def build_graph(cls):
+       if cls.tf_vars is None and cls.tf_parameters is None:
+           # This should create the TensorFlow variables.
+           tf_params = cls.tf_params()
+           cls.tf_parameters = tf_params
            # tf_X is a TensorFlow variable representing the first input argument 
            # to the kernel.
-           tf_X = tf.placeholder(config.tensorflow_config['default_float'])
-           tf_y = tf.placeholder(config.tensorflow_config['default_float'])
+           tf_X = tf.placeholder(config.tensorflow_config['default_float'], name='X')
+           tf_Y = tf.placeholder(config.tensorflow_config['default_float'], name='Y')
+           tf_y = tf.placeholder(config.tensorflow_config['default_float'], name='y')
+           # This node is for computing the Gram matrix.
+           tf_kery = cls.tf_eval(tf_X, tf_y, **tf_params)
+           # prebuild TensorFlow node for evaluating the gradient of k(X, y)
+           # w.r.t X.
+           tf_dKdX = tf.gradients(tf_kery, [tf_X])[0]
 
            tf_vars = {}
            tf_vars['tf_X'] = tf_X
+           tf_vars['tf_Y'] = tf_Y
            tf_vars['tf_y'] = tf_y
-           TFKernel.tf_vars = tf_vars
+           tf_vars['tf_kery'] = tf_kery
+           tf_vars['tf_dKdX'] = tf_dKdX
+           cls.tf_vars = tf_vars
 
-    def __init__(self):
-        TFKernel.build_graph()
-        # tf_X is a TensorFlow variable representing the first input argument 
-        # to the kernel.
-        tf_X = TFKernel.tf_vars['tf_X']
-        tf_y = TFKernel.tf_vars['tf_y']
+    def __init__(self, **params):
+        self.build_graph()
+        self.params = params
 
-        # Prebuild a TensorFlow graph for grad_x()
-        tf_K = self.tf_eval(tf_X, tf_y)
-        tf_Kdx = tf.gradients(tf_K, [tf_X])[0]
+        self.tf_X = self.tf_vars['tf_X']
+        self.tf_Y = self.tf_vars['tf_Y'] 
+        self.tf_y = self.tf_vars['tf_y'] 
+        self.tf_kery = self.tf_vars['tf_kery']
+        self.tf_dKdX = self.tf_vars['tf_dKdX']
 
-        self.tf_X = tf_X 
-        self.tf_y = tf_y 
-        self.tf_Kdx = tf_Kdx
+    @classmethod
+    def tf_params(cls):
+        """
+        Return a dictionary whose keys are variables names, and values are 
+        TensorFlow variables representing parameters of the unnormalized density,
+        creating the TensorFlow variables in the process.
+        """
+        raise NotImplementedError()
 
-    @abstractmethod
-    def tf_eval(self, X, Y):
+    @classmethod
+    def tf_eval(self, X, Y, **tf_params):
         """
         X, Y are TensorFlow variables.
         X: n1 x d matrix.
@@ -85,11 +106,18 @@ class TFKernel(object):
         """
         tf_X = self.tf_X
         tf_y = self.tf_y
-        #tf_X = tf.placeholder(config.tensorflow_config['default_float'])
-        #tf_y = tf.placeholder(config.tensorflow_config['default_float'])
-        tf_Kdx = self.tf_Kdx
+        tf_dKdX = self.tf_dKdX
+
+        to_feed = {tf_X: X, tf_y: y[np.newaxis, :]}
+        #print 'to_feed: {0}'.format(to_feed)
+        # Take into account possible parameters of the kernel
+        if self.tf_parameters is not None:
+            for var_name, tfv in self.tf_parameters.iteritems():
+                if var_name not in self.params:
+                    raise ValueError('The parameter "{0}" is not specified.'.format(var_name))
+                to_feed[tfv] = self.params[var_name]
         with tf.Session() as sess:
-            Kdx = sess.run(tf_Kdx, feed_dict={tf_X: X, tf_y: y[np.newaxis, :]})
+            Kdx = sess.run(tf_dKdX, feed_dict=to_feed)
         return Kdx
 
 # end class TFKernel
@@ -100,8 +128,8 @@ class DifferentiableKernel(TFKernel, Kernel):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self):
-        super(DifferentiableKernel, self).__init__()
+    def __init__(self, **params):
+        super(DifferentiableKernel, self).__init__(**params)
 
 
 class KHoPoly(Kernel):
@@ -138,7 +166,7 @@ class KGauss(DifferentiableKernel):
     def __init__(self, sigma2):
         assert sigma2 > 0, 'sigma2 must be > 0. Was %s'%str(sigma2)
         self.sigma2 = sigma2
-        super(KGauss, self).__init__()
+        super(KGauss, self).__init__(sigma2=sigma2)
 
     def eval(self, X, Y):
         """
@@ -160,9 +188,10 @@ class KGauss(DifferentiableKernel):
         K = np.exp(-D2/self.sigma2)
         return K
 
-    def tf_eval(self, X, Y):
+    @classmethod
+    def tf_eval(cls, X, Y, sigma2):
         """
-        X, Y are TensorFlow variables.
+        X, Y, sigma2 are TensorFlow variables.
         X: n1 x d matrix.
         Y: n2 x d matrix.
 
@@ -173,8 +202,15 @@ class KGauss(DifferentiableKernel):
         col1 = tf.reshape(norm1, [-1, 1])
         row2 = tf.reshape(norm2, [1, -1])
         D2 = col1 - 2*tf.matmul(X, tf.transpose(Y)) + row2
-        K = tf.exp(-D2/self.sigma2)
+        K = tf.exp(-D2/sigma2)
         return K
+
+    @classmethod
+    def tf_params(cls):
+        # Remember that keys should match params dictionary in the constructor.
+        tf_vars = {'sigma2': tf.placeholder(config.tensorflow_config['default_float'], 
+            name='sigma2')}
+        return tf_vars
 
     def __str__(self):
         return "KGauss(%.3f)"%self.sigma2
