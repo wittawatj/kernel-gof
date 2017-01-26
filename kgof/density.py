@@ -21,8 +21,31 @@ class UnnormalizedDensity(object):
     """
     __metaclass__ = ABCMeta
 
+    # TensorFlow variables for this class. Need to build them only once.
+    tf_vars = None
+
+    @staticmethod
+    def build_graph():
+       if UnnormalizedDensity.tf_vars is None:
+           # tf_X is a TensorFlow variable representing the first input argument 
+           # to the kernel.
+           tf_X = tf.placeholder(config.tensorflow_config['default_float'])
+
+           tf_vars = {}
+           tf_vars['tf_X'] = tf_X
+           UnnormalizedDensity.tf_vars = tf_vars
+
     def __init__(self):
-        self.tf_X = tf.placeholder(config.tensorflow_config['default_float'])
+        UnnormalizedDensity.build_graph()
+        tf_X = UnnormalizedDensity.tf_vars['tf_X']
+        # prebuild TensorFlow graph for evaluating the log density
+        tf_logp = self.tf_log_den(tf_X)
+        # prebuild TensorFlow graph for evaluating the gradient of the log density
+        tf_logp_dx = tf.gradients(tf_logp, [tf_X])[0]
+
+        self.tf_X = tf_X 
+        self.tf_logp = tf_logp
+        self.tf_logp_dx = tf_logp_dx
 
     @abstractmethod
     def tf_log_den(self, X):
@@ -54,13 +77,13 @@ class UnnormalizedDensity(object):
         Return a one-dimensional numpy array of length n.
         """
         tf_X = self.tf_X
-        tf_p = self.tf_log_den(tf_X)
+        tf_logp = self.tf_logp
 
         with tf.Session() as sess:
             #init = tf.global_variables_initializer()
             #init = tf.initialize_variables([tf_X])
             #sess.run(init)
-            px = sess.run(tf_p, feed_dict={tf_X: X})
+            px = sess.run(tf_logp, feed_dict={tf_X: X})
         return px
 
     def grad_log(self, X):
@@ -77,13 +100,12 @@ class UnnormalizedDensity(object):
         Return an n x d numpy array of gradients.
         """
         tf_X = self.tf_X
-        tf_p = self.tf_log_den(tf_X)
-        tf_pdx = tf.gradients(tf_p, [tf_X])[0]
+        tf_logp_dx = self.tf_logp_dx
 
         with tf.Session() as sess:
             #init = tf.global_variables_initializer()
             #sess.run(init)
-            pdx = sess.run(tf_pdx, feed_dict={tf_X: X})
+            pdx = sess.run(tf_logp_dx, feed_dict={tf_X: X})
         return pdx
 
 # end of UnnormalizedDensity
@@ -97,9 +119,9 @@ class IsotropicNormal(UnnormalizedDensity):
         mean: one-dimensional numpy array of length d for the mean 
         variance: a positive floating-point number for the variance.
         """
-        super(IsotropicNormal, self).__init__()
         self.mean = mean 
         self.variance = variance
+        super(IsotropicNormal, self).__init__()
 
     def tf_log_den(self, X):
         # X if a TensorFlow variable 

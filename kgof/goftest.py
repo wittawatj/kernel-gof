@@ -94,8 +94,7 @@ class FSSD(GofTest):
             pvalue = np.mean(arr_nfssd > nfssd)
 
         results = {'alpha': self.alpha, 'pvalue': pvalue, 'test_stat': nfssd,
-                'h0_rejected': pvalue < alpha, 
-                'n_simulate': n_simulate,
+                'h0_rejected': pvalue < alpha, 'n_simulate': n_simulate,
                 'time_secs': t.secs, 
                 }
         if return_simulated_stats:
@@ -142,9 +141,13 @@ class FSSD(GofTest):
         grad_logp = self.p.grad_log(X)
         # n x J matrix
         K = k.eval(X, self.V)
+
+        list_grads = [k.grad_x(X, v) for v in self.V]
+        stack0 = np.concatenate([each[np.newaxis, :] for each in list_grads], axis=0)
         #a numpy array G of size n x d x J such that G[:, :, J]
         #    is the derivative of k(X, V_j) with respect to X.
-        dKdV = k.grad_x(X, self.V)
+        dKdV = np.transpose(stack0, (1, 2, 0))
+
         # n x d x J tensor
         grad_logp_K = util.outer_rows(grad_logp, K)
         Xi = grad_logp_K + dKdV

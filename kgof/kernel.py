@@ -31,11 +31,36 @@ class TFKernel(object):
     """
     __metaclass__ = ABCMeta
 
+    # TensorFlow variables for this class. Need to build them only once.
+    tf_vars = None
+
+    @staticmethod
+    def build_graph():
+       if TFKernel.tf_vars is None:
+           # tf_X is a TensorFlow variable representing the first input argument 
+           # to the kernel.
+           tf_X = tf.placeholder(config.tensorflow_config['default_float'])
+           tf_y = tf.placeholder(config.tensorflow_config['default_float'])
+
+           tf_vars = {}
+           tf_vars['tf_X'] = tf_X
+           tf_vars['tf_y'] = tf_y
+           TFKernel.tf_vars = tf_vars
+
     def __init__(self):
+        TFKernel.build_graph()
         # tf_X is a TensorFlow variable representing the first input argument 
         # to the kernel.
-        self.tf_X = tf.placeholder(config.tensorflow_config['default_float'])
-        self.tf_Y = tf.placeholder(config.tensorflow_config['default_float'])
+        tf_X = TFKernel.tf_vars['tf_X']
+        tf_y = TFKernel.tf_vars['tf_y']
+
+        # Prebuild a TensorFlow graph for grad_x()
+        tf_K = self.tf_eval(tf_X, tf_y)
+        tf_Kdx = tf.gradients(tf_K, [tf_X])[0]
+
+        self.tf_X = tf_X 
+        self.tf_y = tf_y 
+        self.tf_Kdx = tf_Kdx
 
     @abstractmethod
     def tf_eval(self, X, Y):
@@ -48,31 +73,24 @@ class TFKernel(object):
         """
         raise NotImplementedError()
 
-    def grad_x(self, X, Y):
+    def grad_x(self, X, y):
         """
         Compute the gradient with respect to X (the first argument of the
         kernel) using TensorFlow. This method calls tf_eval().
         X: nx x d numpy array.
-        Y: ny x d numpy array.
+        y: numpy array of length d.
 
-        Return a numpy array G of size nx x d x ny such that G[:, :, j]
-            is the derivative of k(X, Y_j) with respect to X, where Y_j 
-            denotes jth row of Y.
+        Return a numpy array G of size nx x d, the derivative of k(X, y) with
+        respect to X.
         """
-        #tf_X = self.tf_X
-        #tf_Y = self.tf_Y
-        tf_X = tf.placeholder(config.tensorflow_config['default_float'], shape=X.shape)
-        tf_Y = tf.placeholder(config.tensorflow_config['default_float'], shape=Y.shape)
-        tf_K = self.tf_eval(tf_X, tf_Y)
-        tf_K_cols = tf.unstack(tf_K, axis=1)
-        tf_Kdxs = [tf.gradients(col, [tf_X])[0] for col in tf_K_cols]
-
+        tf_X = self.tf_X
+        tf_y = self.tf_y
+        #tf_X = tf.placeholder(config.tensorflow_config['default_float'])
+        #tf_y = tf.placeholder(config.tensorflow_config['default_float'])
+        tf_Kdx = self.tf_Kdx
         with tf.Session() as sess:
-            # cols_dxs is a list. Each element is an nx x d numpy array. 
-            cols_dxs = sess.run(tf_Kdxs, feed_dict={tf_X: X, tf_Y: Y})
-        #return np.concatenate([col[np.newaxis, :] for col in cols_dxs], axis=0)
-        stack0 = np.concatenate([col[np.newaxis, :] for col in cols_dxs], axis=0)
-        return np.transpose(stack0, (1, 2, 0))
+            Kdx = sess.run(tf_Kdx, feed_dict={tf_X: X, tf_y: y[np.newaxis, :]})
+        return Kdx
 
 # end class TFKernel
 
@@ -118,9 +136,9 @@ class KLinear(Kernel):
 class KGauss(DifferentiableKernel):
 
     def __init__(self, sigma2):
-        super(KGauss, self).__init__()
         assert sigma2 > 0, 'sigma2 must be > 0. Was %s'%str(sigma2)
         self.sigma2 = sigma2
+        super(KGauss, self).__init__()
 
     def eval(self, X, Y):
         """
