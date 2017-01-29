@@ -17,11 +17,6 @@ class Kernel(object):
         """Evalute the kernel on data X and Y """
         pass
 
-    #@abstractmethod
-    #def pair_eval(self, X, Y):
-    #    """Evaluate k(x1, y1), k(x2, y2), ..."""
-    #    pass
-
 
 class TFKernel(object):
     """
@@ -94,7 +89,88 @@ class TFKernel(object):
         """
         raise NotImplementedError()
 
-    def grad_x(self, X, y):
+# end class TFKernel
+
+class KSTKernel(object):
+    """
+    Interface specifiying methods a kernel has to implement to be used with 
+    the Kernelized Stein discrepancy test of Chwialkowski et al., 2016 and 
+    Liu et al., 2016 (ICML 2016 papers).
+    """
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def gradX_Y(self, X, Y, dim):
+       """
+       Compute the gradient with respect to the dimension dim of X in k(X, Y).
+
+       X: nx x d
+       Y: ny x d
+
+       Return a numpy array of size nx x ny.
+       """
+       raise NotImplementedError()
+
+    @abstractmethod
+    def gradY_X(self, X, Y, dim):
+       """
+       Compute the gradient with respect to the dimension dim of Y in k(X, Y).
+
+       X: nx x d
+       Y: ny x d
+
+       Return a numpy array of size nx x ny.
+       """
+       raise NotImplementedError()
+
+    #@abstractmethod
+    #def gradX_Y_avgX(self, X, Y):
+    #    """
+    #    Compute the gradient with respect to X of k(X, Y) then average over all X.
+
+    #    X: nx x d
+    #    Y: ny x d
+
+    #    Return a numpy array of size ny x d
+    #    """
+    #    raise NotImplementedError()
+
+    #@abstractmethod
+    #def gradY_X_avgY(self, X, Y):
+    #    """
+    #    Compute the gradient with respect to Y of k(X, Y) then average over all Y.
+
+    #    X: nx x d
+    #    Y: ny x d
+
+    #    Return a numpy array of size nx x d
+    #    """
+    #    raise NotImplementedError()
+
+    @abstractmethod
+    def gradXY_sum(self, X, Y):
+        """
+        Compute \sum_{i=1}^d \frac{\partial^2 k(x, Y)}{\partial x_i \partial y_i}
+        evaluated at each x_i in X, and y_i in Y.
+
+        X: nx x d numpy array.
+        Y: ny x d numpy array. 
+
+        Return a nx x ny numpy array of the derivatives.
+        """
+        raise NotImplementedError()
+    
+
+class DifferentiableKernel(TFKernel, Kernel):
+    """
+    A differentiable kernel which is both a Kernel and a TFKernel.
+    """
+    __metaclass__ = ABCMeta
+
+    def __init__(self, **params):
+        super(DifferentiableKernel, self).__init__(**params)
+
+    def gradX_y(self, X, y):
         """
         Compute the gradient with respect to X (the first argument of the
         kernel) using TensorFlow. This method calls tf_eval().
@@ -120,48 +196,8 @@ class TFKernel(object):
             Kdx = sess.run(tf_dKdX, feed_dict=to_feed)
         return Kdx
 
-# end class TFKernel
 
-class DifferentiableKernel(TFKernel, Kernel):
-    """
-    A differentiable kernel which is both a Kernel and a TFKernel.
-    """
-    __metaclass__ = ABCMeta
-
-    def __init__(self, **params):
-        super(DifferentiableKernel, self).__init__(**params)
-
-
-class KHoPoly(Kernel):
-    """Homogeneous polynomial kernel of the form
-    (x.dot(y))**d
-    """
-    def __init__(self, degree):
-        assert degree > 0
-        self.degree = degree
-
-    def eval(self, X, Y):
-        return X.dot(Y.T)**self.degree
-
-    def pair_eval(self, X, Y):
-        return np.sum(X*Y, 1)**self.degree
-
-    def __str__(self):
-        return 'KHoPoly(d=%d)'%self.degree
-
-
-class KLinear(Kernel):
-    def eval(self, X, Y):
-        return X.dot(Y.T)
-
-    def pair_eval(self, X, Y):
-        return np.sum(X*Y, 1)
-
-    def __str__(self):
-        return "KLinear()"
-
-
-class KGauss(DifferentiableKernel):
+class KGauss(DifferentiableKernel, KSTKernel):
 
     def __init__(self, sigma2):
         assert sigma2 > 0, 'sigma2 must be > 0. Was %s'%str(sigma2)
@@ -185,7 +221,7 @@ class KGauss(DifferentiableKernel):
         (n2, d2) = Y.shape
         assert d1==d2, 'Dimensions of the two inputs must be the same'
         D2 = np.sum(X**2, 1)[:, np.newaxis] - 2*X.dot(Y.T) + np.sum(Y**2, 1)
-        K = np.exp(-D2/self.sigma2)
+        K = np.exp(-D2/(2.0*self.sigma2))
         return K
 
     @classmethod
@@ -202,7 +238,7 @@ class KGauss(DifferentiableKernel):
         col1 = tf.reshape(norm1, [-1, 1])
         row2 = tf.reshape(norm2, [1, -1])
         D2 = col1 - 2*tf.matmul(X, tf.transpose(Y)) + row2
-        K = tf.exp(-D2/sigma2)
+        K = tf.exp(-D2/(2.0*sigma2))
         return K
 
     @classmethod
@@ -211,6 +247,89 @@ class KGauss(DifferentiableKernel):
         tf_vars = {'sigma2': tf.placeholder(config.tensorflow_config['default_float'], 
             name='sigma2')}
         return tf_vars
+
+
+    def gradX_Y(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of X in k(X, Y).
+ 
+        X: nx x d
+        Y: ny x d
+ 
+        Return a numpy array of size nx x ny.
+        """
+        sigma2 = self.sigma2
+        K = self.eval(X, Y)
+        Diff = X[:, [dim]] - Y[:, [dim]].T
+        G = -K*Diff/sigma2
+        return G
+
+    def gradY_X(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of X in k(X, Y).
+ 
+        X: nx x d
+        Y: ny x d
+ 
+        Return a numpy array of size nx x ny.
+        """
+        return -self.gradX_Y(X, Y, dim)
+ 
+    #def gradX_Y_avgX(self, X, Y):
+    #    """
+    #    Compute the gradient with respect to X of k(X, Y) then average over all X.
+
+    #    X: nx x d
+    #    Y: ny x d
+
+    #    Return a numpy array of size ny x d
+    #    """
+    #    assert X.shape[1] == Y.shape[1]
+    #    ny, d = Y.shape
+    #    sigma2 = self.sigma2
+    #    K = self.eval(X, Y)
+    #    # resulting gradient
+    #    G = np.zeros((ny, d))
+    #    for i in range(d):
+    #        # Do O(n^2) for d dimensions. Memory cost: O(n^2)
+    #        Xi = X[:, [i]]
+    #        Yi = Y[:, [i]]
+    #        # nx x ny matrix
+    #        Diffi = Xi-Yi.T
+    #        # ny vector
+    #        G[:, i] = -np.mean(K*Diffi, axis=0)/sigma2
+    #    return G
+
+    #def gradY_X_avgY(self, X, Y):
+    #    """
+    #    Compute the gradient with respect to Y of k(X, Y) then average over all Y.
+
+    #    X: nx x d
+    #    Y: ny x d
+
+    #    Return a numpy array of size nx x d
+    #    """
+    #    return -self.gradX_Y_avgX(Y, X)
+
+    def gradXY_sum(self, X, Y):
+        """
+        Compute \sum_{i=1}^d \frac{\partial^2 k(x, Y)}{\partial x_i \partial y_i}
+        evaluated at each x_i in X, and y_i in Y.
+
+        X: nx x d numpy array.
+        Y: ny x d numpy array. 
+
+        Return a nx x ny numpy array of the derivatives.
+        """
+        (n1, d1) = X.shape
+        (n2, d2) = Y.shape
+        assert d1==d2, 'Dimensions of the two inputs must be the same'
+        d = d1
+        sigma2 = self.sigma2
+        D2 = np.sum(X**2, 1)[:, np.newaxis] - 2*X.dot(Y.T) + np.sum(Y**2, 1)
+        K = np.exp(-D2/(2.0*sigma2))
+        G = K/sigma2*(d - D2/sigma2)
+        return G
 
     def __str__(self):
         return "KGauss(%.3f)"%self.sigma2
@@ -232,7 +351,7 @@ class KGauss(DifferentiableKernel):
     #    assert n1==n2, 'Two inputs must have the same number of instances'
     #    assert d1==d2, 'Two inputs must have the same dimension'
     #    D2 = np.sum( (X-Y)**2, 1)
-    #    Kvec = np.exp(-D2/self.sigma2)
+    #    Kvec = np.exp(-D2/(2.0*self.sigma2))
     #    return Kvec
 
 

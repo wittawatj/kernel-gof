@@ -250,3 +250,11 @@ def randn(m, n, seed=3):
     with NumpySeedContext(seed=seed):
         return np.random.randn(m, n)
 
+def matrix_inner_prod(A, B):
+    """
+    Compute the matrix inner product <A, B> = trace(A^T * B).
+    """
+    assert A.shape[0] == B.shape[0]
+    assert A.shape[1] == B.shape[1]
+    return A.reshape(-1).dot(B.reshape(-1))
+
