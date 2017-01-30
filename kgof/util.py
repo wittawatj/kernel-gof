@@ -258,3 +258,13 @@ def matrix_inner_prod(A, B):
     assert A.shape[1] == B.shape[1]
     return A.reshape(-1).dot(B.reshape(-1))
 
+def get_classpath(obj):
+    """
+    Return the full module and class path of the obj. For instance, 
+    kgof.density.IsotropicNormal
+
+    Return a string.
+    """
+    return obj.__class__.__module__ + '.' + obj.__class__.__name__
+
+

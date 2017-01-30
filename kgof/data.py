@@ -103,9 +103,49 @@ class DataSource(object):
         the input (n, seed)."""
         raise NotImplementedError()
 
-    @abstractmethod
-    def dim(self):
-        """Return the dimension of the data. """
-        raise NotImplementedError()
-    
+    #@abstractmethod
+    #def dim(self):
+    #    """Return the dimension of the data. """
+    #    raise NotImplementedError()
+
+#  end DataSource
+
+class DSIsotropicNormal(DataSource):
+    """
+    A DataSource providing samples from a mulivariate isotropic normal
+    distribution.
+    """
+    def __init__(self, mean, variance):
+        """
+        mean: a numpy array of length d for the mean 
+        variance: a positive floating-point number for the variance.
+        """
+        assert len(mean.shape) == 1
+        self.mean = mean 
+        self.variance = variance
+
+    def sample(self, n, seed=2):
+        with util.NumpySeedContext(seed=seed):
+            d = len(self.mean)
+            mean = self.mean
+            variance = self.variance
+            X = np.random.randn(n, d)*np.sqrt(variance) + mean
+            return Data(X)
+
+
+#class PQSource(DataSource):
+#    """
+#    A tuple of P (a fixed Density) and a DataSource that can provide samples 
+#    from Q. In our terminology, P is a fixed distribution whose density is known.
+#    Q is the unknown distribution providing the sample.
+#    """
+#    __metaclass__ = ABCMeta
+
+#    def __init__(self, p):
+#        """
+#        p: a Density
+#        """
+#        self.p = p
+
+
 

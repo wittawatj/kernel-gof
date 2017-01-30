@@ -17,13 +17,19 @@ def get_root():
 def result_folder():
     """Return the full path to the result/ folder containing experimental result 
     files"""
-    return os.path.join(get_root(), 'result')
+    import kgof.config as config
+    results_path = config.expr_configs['expr_results_path']
+    return results_path
+    #return os.path.join(get_root(), 'result')
 
 def data_folder():
     """
     Return the full path to the data folder 
     """
-    return os.path.join(get_root(), 'data')
+    import kgof.config as config
+    data_path = config.expr_configs['data_path']
+    return data_path
+    #return os.path.join(get_root(), 'data')
 
 def data_file(*relative_path):
     """
@@ -44,7 +50,7 @@ def ex_result_folder(ex):
     rp = result_folder()
     fpath = os.path.join(rp, 'ex%d'%ex )
     if not os.path.exists(fpath):
-        os.mkdir(fpath)
+        create_dirs(fpath)
     return fpath
 
 def create_dirs(full_path):

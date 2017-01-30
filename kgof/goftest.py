@@ -15,7 +15,10 @@ import scipy.stats as stats
 import tensorflow as tf
 
 class GofTest(object):
-    """Abstract class for a goodness-of-fit test."""
+    """Abstract class for a goodness-of-fit test.
+    Many subclasses will likely take in a Density object in the constructor,
+    representing a fixed distribution to compare against.
+    """
     __metaclass__ = ABCMeta
 
     def __init__(self, alpha):

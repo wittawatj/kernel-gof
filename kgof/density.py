@@ -7,8 +7,7 @@ __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
 import kgof.config as config
-import kgof.util as util
-import math
+#import kgof.util as util
 import numpy as np
 import scipy.stats as stats
 import tensorflow as tf
@@ -24,15 +23,14 @@ class UnnormalizedDensity(object):
     TensorFlow variables in tf_vars (a class variable). build_graph() will likely
     call tf_log_den().
 
-    - The implementations in the base classes are such that subclasses only 
-    need to override tf_log_den(), and __init__(). But this creates a new
-    subgraph for each object creation, which is bad (slow down TensorFlow).
-    Overridding all methods is recommended.
-
     - Subclasses should have tf_vars as their class variables.
     - Subclasses should have an instance variable called "params". A dictionary:
         parameter name |-> parameter value. The parameter name keys must match 
         that of the TensorFlow variables in tf_parameters (class variable).
+    - Subclasses must implement tf_params() return a dictionary with parameter 
+        names as the keys.
+    - The constructor of subclasses msut take in all the parameters as keyword
+      arguments.
     """
     __metaclass__ = ABCMeta
 
@@ -56,8 +54,7 @@ class UnnormalizedDensity(object):
             cls.tf_parameters = tf_params
 
             tf_vars = {}
-            # tf_X is a TensorFlow variable representing the first input argument 
-            # to the kernel.
+            # tf_X is a TensorFlow variable representing the input 
             tf_X = tf.placeholder(config.tensorflow_config['default_float'])
             # prebuild TensorFlow graph for evaluating the log density
             tf_logp = cls.tf_log_den(tf_X, **tf_params)
@@ -80,6 +77,20 @@ class UnnormalizedDensity(object):
         self.tf_X = self.tf_vars['tf_X']
         self.tf_logp = self.tf_vars['tf_logp']
         self.tf_logp_dx = self.tf_vars['tf_logp_dx']
+
+    def get_params(self):
+        """
+        Return the dictionary of parameters passed to the constructor.
+        """
+        return self.params
+
+    @classmethod
+    def from_params(cls, **params):
+        """
+        Construct an UnnormalizedDensity from the class cls and the dictionary 
+        of parameters. params can be obtained from get_params().
+        """
+        return cls(**params)
 
     @classmethod
     def tf_params(cls):
@@ -163,6 +174,8 @@ class UnnormalizedDensity(object):
             var_value = sess.run(tf_var, feed_dict=to_feed)
         return var_value
 
+
+
 # end of UnnormalizedDensity
 
 class IsotropicNormal(UnnormalizedDensity):
@@ -171,7 +184,7 @@ class IsotropicNormal(UnnormalizedDensity):
     """
     def __init__(self, mean, variance):
         """
-        mean: one-dimensional numpy array of length d for the mean 
+        mean: a numpy array of length d for the mean 
         variance: a positive floating-point number for the variance.
         """
         self.mean = mean 
@@ -207,31 +220,4 @@ class IsotropicNormal(UnnormalizedDensity):
 
 # end of IsotropicNormal
     
-#class CallableDensity(UnnormalizedDensity):
-#    """
-#    A convenient unnormalized density that can be specified by a function or a 
-#    callable object.
-#    """
-#    logp = None
-
-#    def __init__(self, logp):
-#        """
-#        logp: a function handle taking a TensorFlow variable, and returning 
-#            density values.
-#        """
-#        CallableDensity.logp = logp
-#        super(CallableDensity, self).__init__()
-
-#    @classmethod
-#    def tf_log_den(cls, X):
-#        #func = CallableDensity.logp
-#        iso_logp = lambda X: -tf.reduce_sum(tf.square(X - 0), 1)/(2.0*1)
-#        return iso_logp(X)
-
-#    @classmethod
-#    def tf_params(cls):
-#        """No model parameters."""
-#        return {}
-
-# end of CallableDensity
 
