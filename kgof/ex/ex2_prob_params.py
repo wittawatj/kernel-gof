@@ -34,6 +34,14 @@ All the job functions return a dictionary with the following keys:
     - test_result: the result from calling perform_test(te).
     - time_secs: run time in seconds 
 """
+def form_p(p_classpath, p_params):
+    """
+    Construct a distribution p (UnnormalizedDensity).
+    """
+    p_cls = eval(p_classpath)
+    p = p_cls.from_params(**p_params)
+    return p
+
 
 def job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=1):
     """
@@ -49,8 +57,8 @@ def job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=1):
     r: trial number (positive integer)
     """
     # reconstruct p (UnnormalizedDensity)
-    p_cls = eval(p_classpath)
-    p = p_cls.from_params(**p_params)
+    p = form_p(p_classpath, p_params)
+
     # full data
     data = tr + te
     X = data.data()
@@ -65,7 +73,32 @@ def job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=1):
     return { 'test_result': fssd_med_result, 'time_secs': t.secs}
 
 def job_fssdJ2_med(p_classpath, p_params, data_source, tr, te, r):
+    """
+    FSSD. J=2
+    """
     return job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=2)
+
+def job_fssdJ5_med(p_classpath, p_params, data_source, tr, te, r):
+    """
+    FSSD. J=2
+    """
+    return job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=5)
+
+def job_kstein_med(p_classpath, p_params, data_source, tr, te, r):
+    # reconstruct p
+    p = form_p(p_classpath, p_params)
+
+    # full data
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        med = util.meddistance(X, subsample=1000)
+        k = kernel.KGauss(med**2)
+
+        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=500, seed=r)
+        kstein_result = kstein.perform_test(data)
+    return { 'test_result': kstein_result, 'time_secs': t.secs}
 
 
 # Define our custom Job, which inherits from base class IndependentJob
@@ -141,21 +174,24 @@ class Ex2Job(IndependentJob):
 from kgof.ex.ex2_prob_params import Ex2Job
 from kgof.ex.ex2_prob_params import job_fssdJ1_med
 from kgof.ex.ex2_prob_params import job_fssdJ2_med
+from kgof.ex.ex2_prob_params import job_fssdJ5_med
+from kgof.ex.ex2_prob_params import job_kstein_med
 
 #--- experimental setting -----
 ex = 2
 
 # sample size = n (the training and test sizes are n/2)
-sample_size = 1000
+sample_size = 500
 
 # number of test locations / test frequencies J
 alpha = 0.05
 tr_proportion = 0.5
 # repetitions for each parameter setting
-reps = 5
+reps = 100
 
 method_job_funcs = [ 
-        job_fssdJ1_med, job_fssdJ2_med,
+        job_fssdJ1_med, job_fssdJ5_med, 
+        job_kstein_med,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -174,9 +210,9 @@ def get_pqsource_list(prob_label):
     - ds: a DataSource, each corresponding to one parameter setting.
     """
     sg_ds = [1, 5, 10, 15]
-    gmd_ds = [1, 5, 10, 15]
-    gvinc_d1_vs = [sd**2 for sd in [1, 2, 3, 4]]
-    gvinc_d5_vs = [sd**2 for sd in [1, 2, 3, 4]]
+    gmd_ds = [5, 20, 40, 60]
+    gvinc_d1_vs = [1, 2, 3, 4] 
+    gvinc_d5_vs = [1, 2, 3, 4]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
             'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
