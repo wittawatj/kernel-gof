@@ -11,3 +11,4 @@ screen -S ex2_kgof -X screen -t tab3 bash -lic "python ex2_prob_params.py gvinc_
 
 
 #python ex2_prob_params.py urot_noise
+
