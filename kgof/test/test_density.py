@@ -13,7 +13,6 @@ import kgof.kernel as kernel
 import kgof.goftest as gof
 import kgof.glo as glo
 import scipy.stats as stats
-import tensorflow as tf
 
 import unittest
 

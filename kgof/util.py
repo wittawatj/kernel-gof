@@ -4,7 +4,6 @@ __author__ = 'wittawat'
 
 import numpy as np
 import time 
-#import tensorflow as tf
 
 class ContextTimer(object):
     """

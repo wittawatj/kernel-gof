@@ -4,7 +4,8 @@ Module for testing kernel module.
 
 __author__ = 'wittawat'
 
-import numpy as np
+import autograd
+import autograd.numpy as np
 import matplotlib.pyplot as plt
 import kgof.data as data
 import kgof.density as density
@@ -13,7 +14,7 @@ import kgof.kernel as kernel
 import kgof.goftest as gof
 import kgof.glo as glo
 import scipy.stats as stats
-import tensorflow as tf
+import numpy.testing as testing
 
 import unittest
 
@@ -54,7 +55,8 @@ class TestKGauss(unittest.TestCase):
                 myG = -K/sigma2*(X-y)
 
                 self.assertEqual(G.shape, myG.shape)
-                np.testing.assert_almost_equal(G, myG)
+                testing.assert_almost_equal(G, myG)
+
 
     def test_gradXY_sum(self):
         n = 11
@@ -77,33 +79,8 @@ class TestKGauss(unittest.TestCase):
                 G = k.gradXY_sum(X, X)
 
                 self.assertEqual(G.shape, myG.shape)
-                np.testing.assert_almost_equal(G, myG)
+                testing.assert_almost_equal(G, myG)
 
-    #def test_gradX_Y_avgX(self):
-    #    nx = 11
-    #    ny = 5
-    #    with util.NumpySeedContext(seed=14):
-    #        for d in [3, 1]:
-    #            X = np.random.randn(nx, d) + 1
-    #            Y = np.random.rand(ny, d)*2
-
-    #            sigma2 = 1.7
-    #            k = kernel.KGauss(sigma2=sigma2)
-
-    #            # nx x ny x d
-    #            T = np.zeros((nx, ny, d))
-    #            K = k.eval(X, Y)
-    #            for i in range(nx):
-    #                for j in range(ny):
-    #                    Di = X[i, :] - Y[j, :]
-    #                    T[i, j, :] = -K[i, j]/sigma2*Di
-    #            myG = np.mean(T, axis=0)
-
-    #            # check correctness 
-    #            G = k.gradX_Y_avgX(X, Y)
-
-    #            self.assertEqual(G.shape, myG.shape)
-    #            np.testing.assert_almost_equal(G, myG)
 
     def tearDown(self):
         pass

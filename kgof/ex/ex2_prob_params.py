@@ -23,7 +23,8 @@ from independent_jobs.engines.SerialComputationEngine import SerialComputationEn
 from independent_jobs.engines.SlurmComputationEngine import SlurmComputationEngine
 from independent_jobs.tools.Log import logger
 import math
-import numpy as np
+#import numpy as np
+import autograd.numpy as np
 import os
 import sys 
 import time
@@ -34,30 +35,18 @@ All the job functions return a dictionary with the following keys:
     - test_result: the result from calling perform_test(te).
     - time_secs: run time in seconds 
 """
-def form_p(p_classpath, p_params):
-    """
-    Construct a distribution p (UnnormalizedDensity).
-    """
-    p_cls = eval(p_classpath)
-    p = p_cls.from_params(**p_params)
-    return p
 
-
-def job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=1):
+def job_fssdJ1_med(p, data_source, tr, te, r, J=1):
     """
     FSSD test with a Gaussian kernel, where the test locations are randomized,
     and the Gaussian width is set with the median heuristic. Use full sample.
     No training/testing splits.
 
-    p_classpath: a string class name for an UnnormalizedDensity
-    p_params: a dictionary of parameters of p. 
-    p: a Density
+    p: an UnnormalizedDensity
     data_source: a DataSource
     tr, te: Data
     r: trial number (positive integer)
     """
-    # reconstruct p (UnnormalizedDensity)
-    p = form_p(p_classpath, p_params)
 
     # full data
     data = tr + te
@@ -72,22 +61,19 @@ def job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=1):
         fssd_med_result = fssd_med.perform_test(data)
     return { 'test_result': fssd_med_result, 'time_secs': t.secs}
 
-def job_fssdJ2_med(p_classpath, p_params, data_source, tr, te, r):
+def job_fssdJ2_med(p, data_source, tr, te, r):
     """
     FSSD. J=2
     """
-    return job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=2)
+    return job_fssdJ1_med(p, data_source, tr, te, r, J=2)
 
-def job_fssdJ5_med(p_classpath, p_params, data_source, tr, te, r):
+def job_fssdJ5_med(p, data_source, tr, te, r):
     """
     FSSD. J=2
     """
-    return job_fssdJ1_med(p_classpath, p_params, data_source, tr, te, r, J=5)
+    return job_fssdJ1_med(p, data_source, tr, te, r, J=5)
 
-def job_kstein_med(p_classpath, p_params, data_source, tr, te, r):
-    # reconstruct p
-    p = form_p(p_classpath, p_params)
-
+def job_kstein_med(p, data_source, tr, te, r):
     # full data
     data = tr + te
     X = data.data()
@@ -104,7 +90,7 @@ def job_kstein_med(p_classpath, p_params, data_source, tr, te, r):
 # Define our custom Job, which inherits from base class IndependentJob
 class Ex2Job(IndependentJob):
    
-    def __init__(self, aggregator, p_classpath, p_params, data_source,
+    def __init__(self, aggregator, p, data_source,
             prob_label, rep, job_func, prob_param):
         #walltime = 60*59*24 
         walltime = 60*59
@@ -112,15 +98,8 @@ class Ex2Job(IndependentJob):
 
         IndependentJob.__init__(self, aggregator, walltime=walltime,
                                memory=memory)
-        # p_classpath is a string of class path for an UnnormalizedDensity.
-        # p_params is a dictionary of parameters used to construct an
-        # UnnormalizedDensity object. 
-        # Ideally, instead of these two values, we want to directly pass an 
-        # UnnormalizedDensity object. However, in some case, an
-        # UnnormalizedDensity object cannot be serialized by Pickle. Object serialization 
-        # is done internally in the independent_jobs package
-        self.p_classpath = p_classpath
-        self.p_params = p_params
+        # p: an UnnormalizedDensity
+        self.p = p
         self.data_source = data_source
         self.prob_label = prob_label
         self.rep = rep
@@ -130,15 +109,8 @@ class Ex2Job(IndependentJob):
     # we need to define the abstract compute method. It has to return an instance
     # of JobResult base class
     def compute(self):
-        
-        # randomly wait a few seconds so that multiple processes accessing the same 
-        # Theano function do not cause a lock problem. I do not know why.
-        # I do not know if this does anything useful.
-        # Sleep in seconds.
-        time.sleep(np.random.rand(1)*3)
 
-        p_classpath = self.p_classpath
-        p_params = self.p_params
+        p = self.p
         data_source = self.data_source 
         r = self.rep
         prob_param = self.prob_param
@@ -152,7 +124,7 @@ class Ex2Job(IndependentJob):
                     param=%.3g"%(job_func.__name__, prob_label, r, prob_param))
 
 
-            job_result = job_func(p_classpath, p_params, data_source, tr, te, r)
+            job_result = job_func(p, data_source, tr, te, r)
 
             # create ScalarResult instance
             result = SingleResult(job_result)
@@ -287,11 +259,8 @@ def run_problem(prob_label):
 
                     # p: an UnnormalizedDensity object
                     p = ps[pi]
-                    p_classpath = util.get_classpath(p)
-                    p_params = p.get_params()
-                    job = Ex2Job(SingleResultAggregator(), p_classpath,
-                            p_params, data_sources[pi], prob_label, r, f,
-                            param)
+                    job = Ex2Job(SingleResultAggregator(), p, data_sources[pi],
+                            prob_label, r, f, param)
                     agg = engine.submit_job(job)
                     aggregators[r, pi, mi] = agg
 
@@ -322,10 +291,7 @@ def run_problem(prob_label):
     # save results 
     results = {'job_results': job_results, 'prob_params': prob_params, 
             'alpha': alpha, 'repeats': reps, 
-            # class of all p's in ps. Assume they have the same class.
-            'p_classpath': util.get_classpath(ps[0]),
-            # get parameters of all p's in ps. Pack them into a list.
-            'ps_params': [p.get_params() for p in ps],
+            'ps': ps,
             'list_data_source': data_sources, 
             'tr_proportion': tr_proportion,
             'method_job_funcs': method_job_funcs, 'prob_label': prob_label,

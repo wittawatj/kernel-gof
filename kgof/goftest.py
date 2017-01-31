@@ -12,7 +12,6 @@ import kgof.util as util
 import kgof.kernel as kernel
 
 import scipy.stats as stats
-import tensorflow as tf
 
 class GofTest(object):
     """Abstract class for a goodness-of-fit test.
