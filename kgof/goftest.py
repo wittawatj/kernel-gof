@@ -282,24 +282,24 @@ class FSSD(GofTest):
         return fssds
 
     @staticmethod
-    def fssd_grid_search_kernel(p, data, test_locs, list_kernel):
+    def fssd_grid_search_kernel(p, dat, test_locs, list_kernel):
         """
         Linear search for the best kernel in the list that maximizes 
         the test power criterion, fixing the test locations to V.
 
         - p: UnnormalizedDensity
-        - data: a Data object
+        - dat: a Data object
         - list_kernel: list of kernel candidates 
 
         return: (best kernel index, array of test power criteria)
         """
         V = test_locs
-        X = data.data()
+        X = dat.data()
         n_cand = len(list_kernel)
         objs = np.zeros(n_cand)
         for i in xrange(n_cand):
             ki = list_kernel[i]
-            obj = FSSD.power_criterion(p, data, ki, test_locs)
+            obj = FSSD.power_criterion(p, dat, ki, test_locs)
             logging.info('(%d), obj: %5.4g, k: %s' %(i, obj, str(ki)))
 
         #Widths that come early in the list 
@@ -319,19 +319,19 @@ class GaussFSSD(FSSD):
         super(GaussFSSD, self).__init__(p, k, V, alpha, n_simulate, seed)
 
     @staticmethod 
-    def power_criterion(p, data, gwidth, test_locs, reg=1e-4):
+    def power_criterion(p, dat, gwidth, test_locs, reg=1e-4):
         k = kernel.KGauss(gwidth)
-        return FSSD.power_criterion(p, data, k, test_locs, reg)
+        return FSSD.power_criterion(p, dat, k, test_locs, reg)
 
     @staticmethod
-    def optimize_auto_init(p, data, J, **ops):
+    def optimize_auto_init(p, dat, J, **ops):
         """
         Optimize parameters by calling optimize_locs_widths(). Automatically 
         initialize the test locations and the Gaussian width.
         """
         assert J>0
         # Use grid search to initialize the gwidth
-        X = data.data()
+        X = dat.data()
         n_gwidth_cand = 5
         gwidth_factors = 2.0**np.linspace(-3, 3, n_gwidth_cand) 
         med2 = util.meddistance(X, 1000)**2
@@ -340,14 +340,14 @@ class GaussFSSD(FSSD):
         # fit a Gaussian to the data and draw to initialize V0
         V0 = util.fit_gaussian_draw(X, J, seed=829, reg=1e-6)
         list_gwidth = np.hstack( ( (med2)*gwidth_factors ) )
-        besti, objs = GaussFSSD.grid_search_gwidth(p, data, V0, list_gwidth)
+        besti, objs = GaussFSSD.grid_search_gwidth(p, dat, V0, list_gwidth)
         gwidth = list_gwidth[besti]
         assert util.is_real_num(gwidth), 'gwidth not real. Was %s'%str(gwidth)
         assert gwidth > 0, 'gwidth not positive. Was %.3g'%gwidth
         logging.info('After grid search, gwidth=%.3g'%gwidth)
 
         
-        V_opt, gwidth_opt, info = GaussFSSD.optimize_locs_widths(p, data,
+        V_opt, gwidth_opt, info = GaussFSSD.optimize_locs_widths(p, dat,
                 gwidth, V0, **ops) 
 
         # set the width bounds
@@ -359,7 +359,7 @@ class GaussFSSD(FSSD):
         return V_opt, gwidth_opt, info
 
     @staticmethod
-    def grid_search_gwidth(p, data, test_locs, list_gwidth):
+    def grid_search_gwidth(p, dat, test_locs, list_gwidth):
         """
         Linear search for the best Gaussian width in the list that maximizes 
         the test power criterion, fixing the test locations. 
@@ -369,15 +369,14 @@ class GaussFSSD(FSSD):
         return: (best width index, list of test power objectives)
         """
         list_gauss_kernel = [kernel.KGauss(gw) for gw in list_gwidth]
-        besti, objs = FSSD.fssd_grid_search_kernel(p, data, test_locs,
+        besti, objs = FSSD.fssd_grid_search_kernel(p, dat, test_locs,
                 list_gauss_kernel)
         return besti, objs
 
     @staticmethod
-    def optimize_locs_widths(p, data, gwidth0, test_locs0, reg=1e-2,
-            max_iter=100,  tol_fun=1e-3, disp=False, locs_bounds_frac=1.0,
-            #gwidthx_lb=None, gwidthx_ub=None,
-            #gwidthy_lb=None, gwidthy_ub=None
+    def optimize_locs_widths(p, dat, gwidth0, test_locs0, reg=1e-2,
+            max_iter=100,  tol_fun=1e-3, disp=False, locs_bounds_frac=0.5,
+            gwidth_lb=None, gwidth_ub=None,
             ):
         """
         Optimize the test locations and the Gaussian kernel width by 
@@ -405,13 +404,13 @@ class GaussFSSD(FSSD):
         Return (V test_locs, gaussian width, optimization info log)
         """
         J = test_locs0.shape[0]
-        X = data.data()
+        X = dat.data()
         n, d = X.shape
 
         # Parameterize the Gaussian width with its square root (then square later)
         # to automatically enforce the positivity.
         def obj(sqrt_gwidth, V):
-            return -GaussFSSD.power_criterion(p, data, sqrt_gwidth**2, V, reg=reg)
+            return -GaussFSSD.power_criterion(p, dat, sqrt_gwidth**2, V, reg=reg)
         flatten = lambda gwidth, V: np.hstack((gwidth, V.reshape(-1)))
         def unflatten(x):
             sqrt_gwidth = x[0]
@@ -429,9 +428,11 @@ class GaussFSSD(FSSD):
         #make sure that the optimized gwidth is not too small or too large.
         fac_min = 1e-2 
         fac_max = 5e2
-        med2 = util.meddistance(X, subsample=1000)
-        gw_min = max(fac_min*med2, 1e-6)
-        gw_max = fac_max*med2
+        med2 = util.meddistance(X, subsample=1000)**2
+        if gwidth_lb is None:
+            gwidth_lb = max(fac_min*med2, 1e-3)
+        if gwidth_ub is None:
+            gwidth_ub = min(fac_max*med2, 1e6)
 
         # Make a box to bound test locations
         X_std = np.std(X, axis=0)
@@ -441,9 +442,10 @@ class GaussFSSD(FSSD):
         # V_lb: J x d
         V_lb = np.tile(X_min - locs_bounds_frac*X_std, (J, 1))
         V_ub = np.tile(X_max + locs_bounds_frac*X_std, (J, 1))
-        # (J*d+1) x 2
-        x0_lb = np.hstack((gw_min, np.reshape(V_lb, -1)))
-        x0_ub = np.hstack((gw_max, np.reshape(V_ub, -1)))
+        # (J*d+1) x 2. Take square root because we parameterize with the square
+        # root
+        x0_lb = np.hstack((np.sqrt(gwidth_lb), np.reshape(V_lb, -1)))
+        x0_ub = np.hstack((np.sqrt(gwidth_ub), np.reshape(V_ub, -1)))
         x0_bounds = zip(x0_lb, x0_ub)
 
         # optimize. Time the optimization as well.

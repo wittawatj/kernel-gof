@@ -22,6 +22,7 @@ from independent_jobs.engines.BatchClusterParameters import BatchClusterParamete
 from independent_jobs.engines.SerialComputationEngine import SerialComputationEngine
 from independent_jobs.engines.SlurmComputationEngine import SlurmComputationEngine
 from independent_jobs.tools.Log import logger
+import logging
 import math
 #import numpy as np
 import autograd.numpy as np
@@ -72,6 +73,49 @@ def job_fssdJ5_med(p, data_source, tr, te, r):
     FSSD. J=2
     """
     return job_fssdJ1_med(p, data_source, tr, te, r, J=5)
+
+def job_fssdJ1_opt(p, data_source, tr, te, r, J=1):
+    """
+    FSSD with optimization on tr. Test on te. Use a Gaussian kernel.
+    """
+    Xtr = tr.data()
+    with util.ContextTimer() as t:
+        # Use grid search to initialize the gwidth
+        n_gwidth_cand = 5
+        gwidth_factors = 2.0**np.linspace(-3, 3, n_gwidth_cand) 
+        med2 = util.meddistance(Xtr, 1000)**2
+
+        k = kernel.KGauss(med2*2)
+        # fit a Gaussian to the data and draw to initialize V0
+        V0 = util.fit_gaussian_draw(Xtr, J, seed=r+1, reg=1e-6)
+        list_gwidth = np.hstack( ( (med2)*gwidth_factors ) )
+        besti, objs = gof.GaussFSSD.grid_search_gwidth(p, tr, V0, list_gwidth)
+        gwidth = list_gwidth[besti]
+        assert util.is_real_num(gwidth), 'gwidth not real. Was %s'%str(gwidth)
+        assert gwidth > 0, 'gwidth not positive. Was %.3g'%gwidth
+        logging.info('After grid search, gwidth=%.3g'%gwidth)
+        
+        ops = {
+            'reg': 1e-2,
+            'max_iter': 50,
+            'tol_fun': 1e-3,
+            'disp': True,
+            'locs_bounds_frac':1.0,
+            'gwidth_lb': 1e-2,
+            }
+
+        V_opt, gwidth_opt, info = gof.GaussFSSD.optimize_locs_widths(p, tr,
+                gwidth, V0, **ops) 
+        # Use the optimized parameters to construct a test
+        k_opt = kernel.KGauss(gwidth_opt)
+        fssd_opt = gof.FSSD(p, k_opt, V_opt, alpha=alpha, n_simulate=2000, seed=r)
+        fssd_opt_result = fssd_opt.perform_test(te)
+    return {'test_result': fssd_opt_result, 'time_secs': t.secs, 
+            'goftest': fssd_opt, 'opt_info': info,
+            }
+
+def job_fssdJ5_opt(p, data_source, tr, te, r):
+    return job_fssdJ1_opt(p, data_source, tr, te, r, J=5)
 
 def job_kstein_med(p, data_source, tr, te, r):
     # full data
@@ -147,6 +191,8 @@ from kgof.ex.ex2_prob_params import Ex2Job
 from kgof.ex.ex2_prob_params import job_fssdJ1_med
 from kgof.ex.ex2_prob_params import job_fssdJ2_med
 from kgof.ex.ex2_prob_params import job_fssdJ5_med
+from kgof.ex.ex2_prob_params import job_fssdJ1_opt
+from kgof.ex.ex2_prob_params import job_fssdJ5_opt
 from kgof.ex.ex2_prob_params import job_kstein_med
 
 #--- experimental setting -----
@@ -163,7 +209,9 @@ reps = 100
 
 method_job_funcs = [ 
         job_fssdJ1_med, job_fssdJ5_med, 
-        job_kstein_med,
+        job_fssdJ1_opt, 
+        job_fssdJ5_opt,
+        job_kstein_med, 
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current

@@ -12,6 +12,8 @@ def get_func2label_map():
             ('job_fssdJ1_med', 'FSSD-med J1'),
             ('job_fssdJ2_med', 'FSSD-med J2'),
             ('job_fssdJ5_med', 'FSSD-med J5'),
+            ('job_fssdJ1_opt', 'FSSD-opt J1'),
+            ('job_fssdJ5_opt', 'FSSD-opt J5'),
             ('job_kstein_med', 'KStein'),
             ]
     #M = {k:v for (k,v) in zip(func_names, labels)}
@@ -26,9 +28,12 @@ def func_plot_fmt_map():
     # line_styles = ['o-', 'x-',  '*-', '-_', 'D-', 'h-', '+-', 's-', 'v-', 
     #               ',-', '1-']
     M = {}
-    M['job_fssdJ1_med'] = 'b-s'
-    M['job_fssdJ2_med'] = 'r-s'
-    M['job_fssdJ5_med'] = 'r-s'
+    M['job_fssdJ1_med'] = 'b--s'
+    M['job_fssdJ2_med'] = 'r--s'
+    M['job_fssdJ5_med'] = 'r--s'
+
+    M['job_fssdJ1_opt'] = 'b-s'
+    M['job_fssdJ5_opt'] = 'r-s'
     M['job_kstein_med'] = 'g-*'
     return M
 
