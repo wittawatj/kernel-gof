@@ -5,12 +5,15 @@ Module containing many types of goodness-of-fit test methods.
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
-import matplotlib.pyplot as plt
-import numpy as np
+import autograd
+import autograd.numpy as np
 import kgof.data as data
 import kgof.util as util
 import kgof.kernel as kernel
+import logging
+import matplotlib.pyplot as plt
 
+import scipy
 import scipy.stats as stats
 
 class GofTest(object):
@@ -115,11 +118,7 @@ class FSSD(GofTest):
 
         # n x d x J
         Xi = self.feature_tensor(X)
-        # n x d*J
-        Tau = Xi.reshape(n, -1)
-        t1 = np.sum(np.sum(Tau/np.sqrt(n-1), 0)**2 )
-        t2 = np.sum( (Tau/np.sqrt(n-1))**2 )
-        stat = t1 - t2
+        stat = FSSD.ustat_h1_mean_variance(Xi, return_variance=False)
 
         #print 'Xi: {0}'.format(Xi)
         #print 'Tau: {0}'.format(Tau)
@@ -130,6 +129,16 @@ class FSSD(GofTest):
             return stat, Xi
         else:
             return stat
+
+    def get_H1_mean_variance(self, dat):
+        """
+        Return the mean and variance under H1 of the test statistic (divided by
+        n).
+        """
+        X = dat.data()
+        Xi = self.feature_tensor(X)
+        mean, variance = FSSD.ustat_h1_mean_variance(Xi, return_variance=True)
+        return mean, variance
 
     def feature_tensor(self, X):
         """
@@ -142,21 +151,81 @@ class FSSD(GofTest):
         return an n x d x J numpy array
         """
         k = self.k
+        n, d = X.shape
         # n x d matrix of gradients
         grad_logp = self.p.grad_log(X)
+        #assert np.all(util.is_real_num(grad_logp))
         # n x J matrix
+        #print 'V'
+        #print self.V
         K = k.eval(X, self.V)
+        #assert np.all(util.is_real_num(K))
 
-        list_grads = [k.gradX_y(X, v) for v in self.V]
-        stack0 = np.concatenate([each[np.newaxis, :] for each in list_grads], axis=0)
+        list_grads = np.array([np.reshape(k.gradX_y(X, v), (1, n, d)) for v in self.V])
+        stack0 = np.concatenate(list_grads, axis=0)
         #a numpy array G of size n x d x J such that G[:, :, J]
         #    is the derivative of k(X, V_j) with respect to X.
         dKdV = np.transpose(stack0, (1, 2, 0))
 
         # n x d x J tensor
         grad_logp_K = util.outer_rows(grad_logp, K)
+        #print 'grad_logp'
+        #print grad_logp.dtype
+        #print grad_logp
+        #print 'K'
+        #print K
         Xi = grad_logp_K + dKdV
         return Xi
+
+    @staticmethod
+    def power_criterion(p, data, k, test_locs, reg=1e-2):
+        """
+        Compute the mean and standard deviation of the statistic under H1.
+        Return mean/sd.
+        """
+        X = data.data()
+        V = test_locs
+        fssd = FSSD(p, k, V)
+        fea_tensor = fssd.feature_tensor(X)
+        u_mean, u_variance = FSSD.ustat_h1_mean_variance(fea_tensor,
+                return_variance=True)
+
+        # mean/sd criterion 
+        obj = u_mean/np.sqrt(u_variance + reg) 
+        return obj
+
+    @staticmethod
+    def ustat_h1_mean_variance(fea_tensor, return_variance=True):
+        """
+        Compute the mean and variance of the asymptotic normal distribution 
+        under H1 of the test statistic.
+
+        fea_tensor: feature tensor obtained from feature_tensor()
+        return_variance: If false, avoid computing and returning the variance.
+
+        Return the mean [and the variance]
+        """
+        Xi = fea_tensor
+        #print 'Xi'
+        #print Xi
+        #assert np.all(util.is_real_num(Xi))
+        n = Xi.shape[0]
+        assert n>1, 'Need n > 1 to compute the mean of the statistic.'
+        # n x d*J
+        Tau = Xi.reshape(n, -1)
+        t1 = np.sum(np.sum(Tau/np.sqrt(n-1), 0)**2 )
+        t2 = np.sum( (Tau/np.sqrt(n-1))**2 )
+        # stat is the mean
+        stat = t1 - t2
+
+        if not return_variance:
+            return stat
+
+        # compute the variance 
+        # mu: d*J vector
+        mu = np.mean(Tau, 0)
+        variance = 4*np.mean(np.dot(Tau, mu)**2) + 4*np.sum(mu**2)**2
+        return stat, variance
 
     @staticmethod 
     def list_simulate_spectral(cov, J, n_simulate=1000, seed=82):
@@ -212,7 +281,198 @@ class FSSD(GofTest):
                 from_ind = end_ind
         return fssds
 
+    @staticmethod
+    def fssd_grid_search_kernel(p, data, test_locs, list_kernel):
+        """
+        Linear search for the best kernel in the list that maximizes 
+        the test power criterion, fixing the test locations to V.
+
+        - p: UnnormalizedDensity
+        - data: a Data object
+        - list_kernel: list of kernel candidates 
+
+        return: (best kernel index, array of test power criteria)
+        """
+        V = test_locs
+        X = data.data()
+        n_cand = len(list_kernel)
+        objs = np.zeros(n_cand)
+        for i in xrange(n_cand):
+            ki = list_kernel[i]
+            obj = FSSD.power_criterion(p, data, ki, test_locs)
+            logging.info('(%d), obj: %5.4g, k: %s' %(i, obj, str(ki)))
+
+        #Widths that come early in the list 
+        # are preferred if test powers are equal.
+        #bestij = np.unravel_index(objs.argmax(), objs.shape)
+        besti = objs.argmax()
+        return besti, objs
+
 # end of FSSD
+# --------------------------------------
+class GaussFSSD(FSSD):
+    """
+    FSSD using an isotropic Gaussian kernel.
+    """
+    def __init__(self, p, sigma2, V, alpha=0.01, n_simulate=1000, seed=10):
+        k = kernel.KGauss(sigma2)
+        super(GaussFSSD, self).__init__(p, k, V, alpha, n_simulate, seed)
+
+    @staticmethod 
+    def power_criterion(p, data, gwidth, test_locs, reg=1e-4):
+        k = kernel.KGauss(gwidth)
+        return FSSD.power_criterion(p, data, k, test_locs, reg)
+
+    @staticmethod
+    def optimize_auto_init(p, data, J, **ops):
+        """
+        Optimize parameters by calling optimize_locs_widths(). Automatically 
+        initialize the test locations and the Gaussian width.
+        """
+        assert J>0
+        # Use grid search to initialize the gwidth
+        X = data.data()
+        n_gwidth_cand = 5
+        gwidth_factors = 2.0**np.linspace(-3, 3, n_gwidth_cand) 
+        med2 = util.meddistance(X, 1000)**2
+
+        k = kernel.KGauss(med2*2)
+        # fit a Gaussian to the data and draw to initialize V0
+        V0 = util.fit_gaussian_draw(X, J, seed=829, reg=1e-6)
+        list_gwidth = np.hstack( ( (med2)*gwidth_factors ) )
+        besti, objs = GaussFSSD.grid_search_gwidth(p, data, V0, list_gwidth)
+        gwidth = list_gwidth[besti]
+        assert util.is_real_num(gwidth), 'gwidth not real. Was %s'%str(gwidth)
+        assert gwidth > 0, 'gwidth not positive. Was %.3g'%gwidth
+        logging.info('After grid search, gwidth=%.3g'%gwidth)
+
+        
+        V_opt, gwidth_opt, info = GaussFSSD.optimize_locs_widths(p, data,
+                gwidth, V0, **ops) 
+
+        # set the width bounds
+        #fac_min = 5e-2
+        #fac_max = 5e3
+        #gwidth_lb = fac_min*med2
+        #gwidth_ub = fac_max*med2
+        #gwidth_opt = max(gwidth_lb, min(gwidth_opt, gwidth_ub))
+        return V_opt, gwidth_opt, info
+
+    @staticmethod
+    def grid_search_gwidth(p, data, test_locs, list_gwidth):
+        """
+        Linear search for the best Gaussian width in the list that maximizes 
+        the test power criterion, fixing the test locations. 
+
+        - V: a J x dx np-array for J test locations 
+
+        return: (best width index, list of test power objectives)
+        """
+        list_gauss_kernel = [kernel.KGauss(gw) for gw in list_gwidth]
+        besti, objs = FSSD.fssd_grid_search_kernel(p, data, test_locs,
+                list_gauss_kernel)
+        return besti, objs
+
+    @staticmethod
+    def optimize_locs_widths(p, data, gwidth0, test_locs0, reg=1e-2,
+            max_iter=100,  tol_fun=1e-3, disp=False, locs_bounds_frac=1.0,
+            #gwidthx_lb=None, gwidthx_ub=None,
+            #gwidthy_lb=None, gwidthy_ub=None
+            ):
+        """
+        Optimize the test locations and the Gaussian kernel width by 
+        maximizing a test power criterion. data should not be the same data as
+        used in the actual test (i.e., should be a held-out set). 
+        This function is deterministic.
+
+        - data: a Data object
+        - test_locs0: Jxd numpy array. Initial V.
+        - reg: reg to add to the mean/sqrt(variance) criterion to become
+            mean/sqrt(variance + reg)
+        - gwidth0: initial value of the Gaussian width^2
+        - max_iter: #gradient descent iterations
+        - optimization_method: a string specifying an optimization method as described 
+            by scipy.optimize.minimize  
+        - tol_fun: termination tolerance of the objective value
+        - disp: True to print convergence messages
+        - locs_bounds_frac: When making box bounds for the test_locs, extend
+            the box defined by coordinate-wise min-max by std of each coordinate
+            multiplied by this number.
+
+        #- If the lb, ub bounds are None, use fraction of the median heuristics 
+        #    to automatically set the bounds.
+        
+        Return (V test_locs, gaussian width, optimization info log)
+        """
+        J = test_locs0.shape[0]
+        X = data.data()
+        n, d = X.shape
+
+        # Parameterize the Gaussian width with its square root (then square later)
+        # to automatically enforce the positivity.
+        def obj(sqrt_gwidth, V):
+            return -GaussFSSD.power_criterion(p, data, sqrt_gwidth**2, V, reg=reg)
+        flatten = lambda gwidth, V: np.hstack((gwidth, V.reshape(-1)))
+        def unflatten(x):
+            sqrt_gwidth = x[0]
+            V = np.reshape(x[1:], (J, d))
+            return sqrt_gwidth, V
+
+        def flat_obj(x):
+            sqrt_gwidth, V = unflatten(x)
+            return obj(sqrt_gwidth, V)
+        # gradient
+        #grad_obj = autograd.elementwise_grad(flat_obj)
+        # Initial point
+        x0 = flatten(np.sqrt(gwidth0), test_locs0)
+        
+        #make sure that the optimized gwidth is not too small or too large.
+        fac_min = 1e-2 
+        fac_max = 5e2
+        med2 = util.meddistance(X, subsample=1000)
+        gw_min = max(fac_min*med2, 1e-6)
+        gw_max = fac_max*med2
+
+        # Make a box to bound test locations
+        X_std = np.std(X, axis=0)
+        # X_min: length-d array
+        X_min = np.min(X, axis=0)
+        X_max = np.max(X, axis=0)
+        # V_lb: J x d
+        V_lb = np.tile(X_min - locs_bounds_frac*X_std, (J, 1))
+        V_ub = np.tile(X_max + locs_bounds_frac*X_std, (J, 1))
+        # (J*d+1) x 2
+        x0_lb = np.hstack((gw_min, np.reshape(V_lb, -1)))
+        x0_ub = np.hstack((gw_max, np.reshape(V_ub, -1)))
+        x0_bounds = zip(x0_lb, x0_ub)
+
+        # optimize. Time the optimization as well.
+        # https://docs.scipy.org/doc/scipy/reference/optimize.minimize-lbfgsb.html
+        grad_obj = autograd.elementwise_grad(flat_obj)
+        with util.ContextTimer() as timer:
+            opt_result = scipy.optimize.minimize(
+              flat_obj, x0, method='L-BFGS-B', 
+              bounds=x0_bounds,
+              tol=tol_fun, 
+              options={
+                  'maxiter': max_iter, 'ftol': tol_fun, 'disp': disp,
+                  'gtol': 1.0e-03,
+                  },
+              jac=grad_obj,
+            )
+
+        opt_result = dict(opt_result)
+        opt_result['time_secs'] = timer.secs
+        x_opt = opt_result['x']
+        sq_gw_opt, V_opt = unflatten(x_opt)
+        gw_opt = sq_gw_opt**2
+
+        assert util.is_real_num(gw_opt), 'gw_opt is not real. Was %s' % str(gw_opt)
+
+        return V_opt, gw_opt, opt_result
+
+
+# ------------------
 
 def bootstrapper_rademacher(n):
     """

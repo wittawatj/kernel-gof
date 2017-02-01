@@ -56,6 +56,38 @@ class TestFSSD(unittest.TestCase):
                 self.assertGreaterEqual(tresult['pvalue'], 0)
                 self.assertLessEqual(tresult['pvalue'], 1)
 
+    def test_ustat_h1_mean_variance(self):
+        seed = 20
+        # sample
+        n = 200
+        alpha = 0.01
+        for d in [1, 4]:
+            mean = np.zeros(d)
+            variance = 1
+            isonorm = density.IsotropicNormal(mean, variance)
+
+            draw_mean = mean + 2
+            draw_variance = variance + 1
+            X = util.randn(n, d, seed=seed)*np.sqrt(draw_variance) + draw_mean
+            dat = data.Data(X)
+
+            # Test
+            for J in [1, 3]:
+                sig2 = util.meddistance(X, subsample=1000)**2
+                k = kernel.KGauss(sig2)
+
+                # random test locations
+                V = util.fit_gaussian_draw(X, J, seed=seed+1)
+                fssd = gof.FSSD(isonorm, k, V, alpha=alpha, n_simulate=200, seed=2)
+                fea_tensor = fssd.feature_tensor(X)
+
+                u_mean, u_variance = gof.FSSD.ustat_h1_mean_variance(fea_tensor)
+
+                # assertions
+                self.assertGreaterEqual(u_variance, 0)
+                # should reject H0
+                self.assertGreaterEqual(u_mean, 0)
+
     def tearDown(self):
         pass
 

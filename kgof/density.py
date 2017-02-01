@@ -15,6 +15,7 @@ import scipy.stats as stats
 class UnnormalizedDensity(object):
     __metaclass__ = ABCMeta
 
+    @abstractmethod
     def log_den(self, X):
         """
         Evaluate this log of the unnormalized density on the n points in X.
@@ -38,6 +39,13 @@ class UnnormalizedDensity(object):
         G = g(X)
         return G
 
+    @abstractmethod
+    def dim(self):
+        """
+        Return the dimension of the input.
+        """
+        raise NotImplementedError()
+
 # end UnnormalizedDensity
 
 class IsotropicNormal(UnnormalizedDensity):
@@ -57,6 +65,9 @@ class IsotropicNormal(UnnormalizedDensity):
         variance = self.variance
         unden = -np.sum((X-mean)**2, 1)/(2.0*variance)
         return unden
+
+    def dim(self):
+        return len(self.mean)
 
 # end IsotropicNormal
 

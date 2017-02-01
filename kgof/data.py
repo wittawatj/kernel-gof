@@ -6,7 +6,7 @@ __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
 import math
-import numpy as np
+import autograd.numpy as np
 import kgof.util as util
 #import scipy.stats as stats
 

@@ -4,7 +4,7 @@ __author__ = 'wittawat'
 
 import kgof.glo as glo
 import matplotlib.pyplot as plt
-import numpy as np
+import autograd.numpy as np
 
 def get_func2label_map():
     # map: job_func_name |-> plot label

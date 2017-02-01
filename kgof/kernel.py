@@ -6,8 +6,8 @@ __author__ = 'wittawat'
 from abc import ABCMeta, abstractmethod
 import autograd
 import autograd.numpy as np
-import kgof.config as config
 #import numpy as np
+import kgof.config as config
 
 class Kernel(object):
     """Abstract class for kernels. Inputs to all methods are numpy arrays."""
@@ -17,6 +17,14 @@ class Kernel(object):
     def eval(self, X, Y):
         """Evalute the kernel on data X and Y """
         pass
+
+    #@classmethod
+    #def from_params(cls, **params):
+    #    """
+    #    Construct a kernel from the given parameters.
+    #    params: a dictionary of parameters. Ideally cls(**params) should work.
+    #    """
+    #    raise NotImplementedError()
 
 
 class KSTKernel(Kernel):
@@ -82,6 +90,8 @@ class DifferentiableKernel(Kernel):
         """
         raise NotImplementedError()
 
+# end class KSTKernel
+
 
 class KGauss(DifferentiableKernel, KSTKernel):
 
@@ -102,10 +112,12 @@ class KGauss(DifferentiableKernel, KSTKernel):
         ------
         K : a n1 x n2 Gram matrix.
         """
-        (n1, d1) = X.shape
-        (n2, d2) = Y.shape
-        assert d1==d2, 'Dimensions of the two inputs must be the same'
-        D2 = np.sum(X**2, 1)[:, np.newaxis] - 2*np.dot(X, Y.T) + np.sum(Y**2, 1)
+        #(n1, d1) = X.shape
+        #(n2, d2) = Y.shape
+        #assert d1==d2, 'Dimensions of the two inputs must be the same'
+        sumx2 = np.reshape(np.sum(X**2, 1), (-1, 1))
+        sumy2 = np.reshape(np.sum(Y**2, 1), (1, -1))
+        D2 = sumx2 - 2*np.dot(X, Y.T) + sumy2
         K = np.exp(-D2/(2.0*self.sigma2))
         return K
 
@@ -121,6 +133,7 @@ class KGauss(DifferentiableKernel, KSTKernel):
         sigma2 = self.sigma2
         K = self.eval(X, Y)
         Diff = X[:, [dim]] - Y[:, [dim]].T
+        #Diff = np.reshape(X[:, dim], (-1, 1)) - np.reshape(Y[:, dim], (1, -1))
         G = -K*Diff/sigma2
         return G
 
@@ -156,12 +169,18 @@ class KGauss(DifferentiableKernel, KSTKernel):
         return G
 
     def gradX_y(self, X, y):
-        f = lambda X: self.eval(X, y[np.newaxis, :])
+        yrow = np.reshape(y, (1, -1))
+        f = lambda X: self.eval(X, yrow)
         g = autograd.elementwise_grad(f)
         G = g(X)
         assert G.shape[0] == X.shape[0]
         assert G.shape[1] == X.shape[1]
         return G
+
+    @classmethod
+    def from_params(cls, **params):
+        assert 'sigma2' in params
+        return KGauss(**params)
 
     def __str__(self):
         return "KGauss(%.3f)"%self.sigma2

@@ -2,7 +2,7 @@
 
 __author__ = 'wittawat'
 
-import numpy as np
+import autograd.numpy as np
 import time 
 
 class ContextTimer(object):
@@ -101,13 +101,17 @@ def meddistance(X, subsample=None, mean_on_fail=True):
         return meddistance(X[ind, :], None, mean_on_fail)
 
 
-def is_real_num(x):
-    """return true if x is a real number"""
-    try:
-        float(x)
-        return not (np.isnan(x) or np.isinf(x))
-    except ValueError:
-        return False
+def is_real_num(X):
+    """return true if x is a real number. 
+    Work for a numpy array as well. Return an array of the same dimension."""
+    def each_elem_true(x):
+        try:
+            float(x)
+            return not (np.isnan(x) or np.isinf(x))
+        except:
+            return False
+    f = np.vectorize(each_elem_true)
+    return f(X)
     
 
 def tr_te_indices(n, tr_proportion, seed=9282 ):

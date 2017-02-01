@@ -7,11 +7,6 @@ Casual usage of the package should not need to change this.
 import kgof.glo as glo
 import os
 
-#tensorflow_config = {
-#    # The default TensorFlow floating-point type to use.
-#    'default_float': tf.float64,
-#}
-
 expr_configs = {
     # Full path to the directory to store temporary files when running
     # experiments.
