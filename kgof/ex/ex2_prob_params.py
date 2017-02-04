@@ -233,6 +233,7 @@ def get_pqsource_list(prob_label):
     gmd_ds = [5, 20, 40, 60]
     gvinc_d1_vs = [1, 2, 3, 4] 
     gvinc_d5_vs = [1, 2, 3, 4]
+    gvd_ds = [5, 10, 15, 20]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
             'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
@@ -253,6 +254,11 @@ def get_pqsource_list(prob_label):
                 data.DSIsotropicNormal(np.zeros(5), var) ) 
                 for var in gvinc_d5_vs
                 ],
+            # Gaussian variance difference problem. Only the variance 
+            # of the first dimenion differs. d varies.
+            'gvd': [(d, density.Normal(np.zeros(d), np.diag(np.hstack((2, np.ones(d-1)))) ), 
+                data.DSNormal(np.zeros(d), np.diag(np.hstack((2, np.ones(d-1)))) ))
+                for d in gvd_ds]
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )

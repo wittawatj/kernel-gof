@@ -8,7 +8,7 @@ from abc import ABCMeta, abstractmethod
 import math
 import autograd.numpy as np
 import kgof.util as util
-#import scipy.stats as stats
+import scipy.stats as stats
 
 class Data(object):
     """
@@ -130,6 +130,29 @@ class DSIsotropicNormal(DataSource):
             mean = self.mean
             variance = self.variance
             X = np.random.randn(n, d)*np.sqrt(variance) + mean
+            return Data(X)
+
+class DSNormal(DataSource):
+    """
+    A DataSource implementing a multivariate Gaussian.
+    """
+    def __init__(self, mean, cov):
+        """
+        mean: a numpy array of length d.
+        cov: d x d numpy array for the covariance.
+        """
+        self.mean = mean 
+        self.cov = cov
+        assert mean.shape[0] == cov.shape[0]
+        assert cov.shape[0] == cov.shape[1]
+
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            mvn = stats.multivariate_normal(self.mean, self.cov)
+            X = mvn.rvs(size=n)
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
             return Data(X)
 
 

@@ -69,6 +69,37 @@ class IsotropicNormal(UnnormalizedDensity):
     def dim(self):
         return len(self.mean)
 
+class Normal(UnnormalizedDensity):
+    """
+    A multivariate normal distribution.
+    """
+    def __init__(self, mean, cov):
+        """
+        mean: a numpy array of length d.
+        cov: d x d numpy array for the covariance.
+        """
+        self.mean = mean 
+        self.cov = cov
+        assert mean.shape[0] == cov.shape[0]
+        assert cov.shape[0] == cov.shape[1]
+        E, V = np.linalg.eig(cov)
+        if np.any(np.abs(E) <= 1e-7):
+            raise ValueError('covariance matrix is not full rank.')
+        # The precision matrix
+        self.prec = np.dot(np.dot(V, np.diag(1.0/E)), V.T)
+        print self.prec
+
+    def log_den(self, X):
+        mean = self.mean 
+        X0 = X - mean
+        X0prec = np.dot(X0, self.prec)
+        unden = -np.sum(X0prec*X0, 1)/2.0
+        return unden
+
+    def dim(self):
+        return len(self.mean)
+
+
 # end IsotropicNormal
 
 
