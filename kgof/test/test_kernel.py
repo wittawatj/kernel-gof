@@ -39,6 +39,24 @@ class TestKGauss(unittest.TestCase):
             self.assertTrue(np.all(K >= 0-1e-6))
             self.assertTrue(np.all(K <= 1+1e-6), 'K not bounded by 1')
 
+    def test_pair_gradX_Y(self):
+        # sample
+        n = 11
+        d = 3
+        with util.NumpySeedContext(seed=20):
+            X = np.random.randn(n, d)*4
+            Y = np.random.randn(n, d)*2
+            k = kernel.KGauss(sigma2=2.1)
+            # n x d
+            pair_grad = k.pair_gradX_Y(X, Y)
+            loop_grad = np.zeros((n, d))
+            for i in range(n):
+                for j in range(d):
+                    loop_grad[i, j] = k.gradX_Y(X[[i], :], Y[[i], :], j)
+
+            testing.assert_almost_equal(pair_grad, loop_grad)
+
+
     def test_gradX_y(self):
         n = 10
         with util.NumpySeedContext(seed=10):

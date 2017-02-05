@@ -199,7 +199,7 @@ from kgof.ex.ex2_prob_params import job_kstein_med
 ex = 2
 
 # sample size = n (the training and test sizes are n/2)
-sample_size = 500
+sample_size = 1000
 
 # number of test locations / test frequencies J
 alpha = 0.05
@@ -231,9 +231,11 @@ def get_pqsource_list(prob_label):
     """
     sg_ds = [1, 5, 10, 15]
     gmd_ds = [5, 20, 40, 60]
-    gvinc_d1_vs = [1, 2, 3, 4] 
-    gvinc_d5_vs = [1, 2, 3, 4]
-    gvd_ds = [5, 10, 15, 20]
+    # vary the mean
+    gmd_d10_ms = [0, 0.05, 0.1, 0.15]
+    gvinc_d1_vs = [1, 1.5, 2, 2.5] 
+    gvinc_d5_vs = [1, 1.5, 2, 2.5]
+    gvd_ds = [1, 5, 10, 15]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
             'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
@@ -243,6 +245,11 @@ def get_pqsource_list(prob_label):
             'gmd': [(d, density.IsotropicNormal(np.zeros(d), 1),
                 data.DSIsotropicNormal(np.hstack((1, np.zeros(d-1))), 1) ) 
                 for d in gmd_ds
+                ],
+            # P = N(0, I), Q = N( (m, ..0), I). Vary m
+            'gmd_d10_ms': [(m, density.IsotropicNormal(np.zeros(10), 1),
+                data.DSIsotropicNormal(np.hstack((m, np.zeros(9))), 1) )
+                for m in gmd_d10_ms
                 ],
             # d=1. Increase the variance. P = N(0, I). Q = N(0, v*I)
             'gvinc_d1': [(var, density.IsotropicNormal(np.zeros(1), 1),
@@ -256,7 +263,7 @@ def get_pqsource_list(prob_label):
                 ],
             # Gaussian variance difference problem. Only the variance 
             # of the first dimenion differs. d varies.
-            'gvd': [(d, density.Normal(np.zeros(d), np.diag(np.hstack((2, np.ones(d-1)))) ), 
+            'gvd': [(d, density.Normal(np.zeros(d), np.eye(d) ), 
                 data.DSNormal(np.zeros(d), np.diag(np.hstack((2, np.ones(d-1)))) ))
                 for d in gvd_ds]
             }

@@ -458,7 +458,7 @@ class GaussFSSD(FSSD):
               tol=tol_fun, 
               options={
                   'maxiter': max_iter, 'ftol': tol_fun, 'disp': disp,
-                  'gtol': 1.0e-03,
+                  'gtol': 1.0e-04,
                   },
               jac=grad_obj,
             )
@@ -514,7 +514,6 @@ class KernelSteinTest(GofTest):
         bootstrapper: a function: (n) |-> numpy array of n weights 
             to be multiplied in the double sum of the test statistic for generating 
             boostrap samples from the null distribution.
-        V: J x dx numpy array of J locations to test the difference
         alpha: significance level 
         n_simulate: The number of times to simulate from the null distribution
             by bootstrapping. Must be a positive integer.
@@ -598,4 +597,87 @@ class KernelSteinTest(GofTest):
         #print 't3: {0}'.format(t3)
         #print 't4: {0}'.format(t4)
 
+# end KernelSteinTest
+
+class LinearKernelSteinTest(GofTest):
+    """
+    Goodness-of-fit test using the linear-version of kernelized Stein
+    discrepancy test of Liu et al., 2016 in ICML 2016. Described in Liu et al.,
+    2016. 
+    - This test runs in O(n d^2) time.
+    - test stat = sqrt(n_half)*linear-time Stein discrepancy
+    - Asymptotically normal under both H0 and H1.
+
+    H0: the sample follows p
+    H1: the sample does not follow p
+
+    p is specified to the constructor in the form of an UnnormalizedDensity.
+    """
+
+    def __init__(self, p, k, alpha=0.01, seed=11):
+        """
+        p: an instance of UnnormalizedDensity
+        k: a LinearKSTKernel object
+        alpha: significance level 
+        n_simulate: The number of times to simulate from the null distribution
+            by bootstrapping. Must be a positive integer.
+        """
+        super(LinearKernelSteinTest, self).__init__(alpha)
+        self.p = p
+        self.k = k
+        self.seed = seed
+
+    def perform_test(self, dat):
+        """
+        dat: a instance of Data
+        """
+        with util.ContextTimer() as t:
+            alpha = self.alpha
+            X = dat.data()
+            n = X.shape[0]
+
+            # H: length-n vector
+            _, H = self.compute_stat(dat, return_pointwise_stats=True)
+            test_stat = np.sqrt(n)*np.mean(H)
+            stat_var = np.mean(H**2) 
+            pvalue = stats.norm.sf(test_stat, loc=0, scale=np.sqrt(stat_var) )
+ 
+        results = {'alpha': self.alpha, 'pvalue': pvalue, 'test_stat': test_stat,
+                 'h0_rejected': pvalue < alpha, 'time_secs': t.secs, 
+                 }
+        return results
+
+
+    def compute_stat(self, dat, return_pointwise_stats=False):
+        """
+        Compute the linear-time statistic described in Eq. 17 of Liu et al., 2016
+        """
+        X = dat.data()
+        n, d = X.shape
+        k = self.k
+        # Divide the sample into two halves of equal size. 
+        n_half = n/2
+        X1 = X[:n_half, :]
+        # May throw away last sample
+        X2 = X[n_half:(2*n_half), :]
+        assert X1.shape[0] == n_half
+        assert X2.shape[0] == n_half
+        # score vectors
+        S1 = self.p.grad_log(X1)
+        # n_half x d
+        S2 = self.p.grad_log(X2)
+        Kvec = k.pair_eval(X1, X2)
+
+        A = np.sum(S1*S2, 1)*Kvec
+        B = np.sum(S2*k.pair_gradX_Y(X1, X2), 1)
+        C = np.sum(S1*k.pair_gradY_X(X1, X2), 1)
+        D = k.pair_gradXY_sum(X1, X2)
+
+        H = A + B + C + D
+        assert len(H) == n_half
+        stat = np.mean(H)
+        if return_pointwise_stats:
+            return stat, H
+        else:
+            return stat
 
