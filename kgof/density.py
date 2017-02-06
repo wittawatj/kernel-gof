@@ -29,7 +29,7 @@ class UnnormalizedDensity(object):
     def grad_log(self, X):
         """
         Evaluate the gradients (with respect to the input) of the log density at
-        each of the n points in X.
+        each of the n points in X. This is the score function.
 
         X: n x d numpy array.
 
@@ -100,7 +100,60 @@ class Normal(UnnormalizedDensity):
         return len(self.mean)
 
 
-# end IsotropicNormal
+# end Normal
 
+class GaussBernRBM(UnnormalizedDensity):
+    """
+    Gaussian-Bernoulli Restricted Boltzmann Machine.
+    The joint density takes the form
+        p(x, h) = Z^{-1} exp(0.5*x^T B h + b^T x + c^T h - 0.5||x||^2)
+    where h is a vector of {-1, 1}.
+    """
+    def __init__(self, B, b, c):
+        """
+        B: a dx x dh matrix 
+        b: a numpy array of length dx
+        c: a numpy array of length dh
+        """
+        dh = len(c)
+        dx = len(b)
+        assert B.shape[0] == dx
+        assert B.shape[1] == dh
+        assert dx > 0
+        assert dh > 0
+        self.B = B
+        self.b = b
+        self.c = c
 
+    def log_den(self, X):
+        raise NotImplementedError()
+        #Bh = np.dot(self.B, self.h)
+        #cth = np.dot(self.c, self.h)
+        #Xb = np.dot(X, self.b)
+        #unden = 0.5*np.dot(X, Bh) + cth + Xb - 0.5*np.sum(X**2, 1)
+        #return unden
+
+    def grad_log(self, X):
+        """
+        Evaluate the gradients (with respect to the input) of the log density at
+        each of the n points in X. This is the score function.
+
+        X: n x d numpy array.
+
+        Return an n x d numpy array of gradients.
+        """
+        XB = np.dot(X, self.B)
+        Y = XB + self.c
+        E2y = np.exp(2*Y)
+        # n x dh
+        Phi = (E2y-1.0)/(E2y+1)
+        # n x dx
+        T = np.dot(Phi, self.B.T)
+        S = self.b - X + T
+        return S
+
+    def dim(self):
+        return len(self.b)
+
+# end GaussBernRBM
 

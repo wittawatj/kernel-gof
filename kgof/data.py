@@ -155,20 +155,54 @@ class DSNormal(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
+class DSGaussBernRBM(DataSource):
+    """
+    A DataSource implementing a Gaussian-Bernoulli Restricted Boltzmann Machine.
+    The probability of the latent vector h is controlled by the vector c.
+    The parameterization of the Gaussian-Bernoulli RBM is given in 
+    density.GaussBernRBM.
 
-#class PQSource(DataSource):
-#    """
-#    A tuple of P (a fixed Density) and a DataSource that can provide samples 
-#    from Q. In our terminology, P is a fixed distribution whose density is known.
-#    Q is the unknown distribution providing the sample.
-#    """
-#    __metaclass__ = ABCMeta
+    - It turns out that this is equivalent to drawing a vector of {-1, 1} for h
+        according to h ~ Discrete(sigmoid(2c)).
+    - Draw x | h ~ N(B*h+b, I)
+    """
+    def __init__(self, B, b, c):
+        """
+        B: a dx x dh matrix 
+        b: a numpy array of length dx
+        c: a numpy array of length dh
+        """
+        dh = len(c)
+        dx = len(b)
+        assert B.shape[0] == dx
+        assert B.shape[1] == dh
+        assert dx > 0
+        assert dh > 0
+        self.B = B
+        self.b = b
+        self.c = c
 
-#    def __init__(self, p):
-#        """
-#        p: a Density
-#        """
-#        self.p = p
+    @staticmethod
+    def sigmoid(x):
+        """
+        x: a numpy array.
+        """
+        return 1.0/(1+np.exp(-x))
 
+    def sample(self, n, seed=3):
+        B = self.B
+        b = self.b
+        c = self.c
+        dh = len(c)
+        dx = len(b)
+        with util.NumpySeedContext(seed=seed):
+            ph = DSGaussBernRBM.sigmoid(2.0*c)
+            # Draw h containing {-1, 1} values
+            # H: n x dh
+            H = np.random.randint(0, 1+1, (n, dh))*2.0 - 1
+            # mean: n x dx
+            mean = np.dot(H, B.T) + b
+            X = np.random.randn(n, dx) + mean
+            return Data(X)
 
 

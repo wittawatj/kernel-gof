@@ -638,7 +638,7 @@ class LinearKernelSteinTest(GofTest):
 
             # H: length-n vector
             _, H = self.compute_stat(dat, return_pointwise_stats=True)
-            test_stat = np.sqrt(n)*np.mean(H)
+            test_stat = np.sqrt(n/2)*np.mean(H)
             stat_var = np.mean(H**2) 
             pvalue = stats.norm.sf(test_stat, loc=0, scale=np.sqrt(stat_var) )
  

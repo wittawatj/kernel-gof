@@ -15,6 +15,7 @@ def get_func2label_map():
             ('job_fssdJ1_opt', 'FSSD-opt J1'),
             ('job_fssdJ5_opt', 'FSSD-opt J5'),
             ('job_kstein_med', 'KStein'),
+            ('job_lin_kstein_med', 'L-KStein'),
             ]
     #M = {k:v for (k,v) in zip(func_names, labels)}
     M = {k:v for (k,v) in func_label_pairs}
@@ -35,6 +36,7 @@ def func_plot_fmt_map():
     M['job_fssdJ1_opt'] = 'b-s'
     M['job_fssdJ5_opt'] = 'r-s'
     M['job_kstein_med'] = 'g-*'
+    M['job_lin_kstein_med'] = 'g--o'
     return M
 
 

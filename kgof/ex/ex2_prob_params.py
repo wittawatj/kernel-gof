@@ -118,6 +118,10 @@ def job_fssdJ5_opt(p, data_source, tr, te, r):
     return job_fssdJ1_opt(p, data_source, tr, te, r, J=5)
 
 def job_kstein_med(p, data_source, tr, te, r):
+    """
+    Kernel Stein discrepancy test of Liu et al., 2016 and Chwialkowski et al.,
+    2016. Use full sample.
+    """
     # full data
     data = tr + te
     X = data.data()
@@ -129,6 +133,23 @@ def job_kstein_med(p, data_source, tr, te, r):
         kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=500, seed=r)
         kstein_result = kstein.perform_test(data)
     return { 'test_result': kstein_result, 'time_secs': t.secs}
+
+def job_lin_kstein_med(p, data_source, tr, te, r):
+    """
+    Linear-time version of the kernel Stein discrepancy test of Liu et al.,
+    2016 and Chwialkowski et al., 2016. Use full sample.
+    """
+    # full data
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        med = util.meddistance(X, subsample=1000)
+        k = kernel.KGauss(med**2)
+
+        lin_kstein = gof.LinearKernelSteinTest(p, k, alpha=alpha, seed=r)
+        lin_kstein_result = lin_kstein.perform_test(data)
+    return { 'test_result': lin_kstein_result, 'time_secs': t.secs}
 
 
 # Define our custom Job, which inherits from base class IndependentJob
@@ -194,6 +215,7 @@ from kgof.ex.ex2_prob_params import job_fssdJ5_med
 from kgof.ex.ex2_prob_params import job_fssdJ1_opt
 from kgof.ex.ex2_prob_params import job_fssdJ5_opt
 from kgof.ex.ex2_prob_params import job_kstein_med
+from kgof.ex.ex2_prob_params import job_lin_kstein_med
 
 #--- experimental setting -----
 ex = 2
@@ -212,12 +234,37 @@ method_job_funcs = [
         job_fssdJ1_opt, 
         job_fssdJ5_opt,
         job_kstein_med, 
+        job_lin_kstein_med,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
 # setting of (pi, r) already exists.
 is_rerun = False
 #---------------------------
+
+def gaussbern_rbm_probs(vars_perturb_B, dx=50, dh=10, n=sample_size):
+    """
+    Get a sequence of Gaussian-Bernoulli RBM problems.
+    We follow the parameter settings as described in section 6 of Liu et al.,
+    2016.
+
+    - var_perturb_B: a list of Gaussian noise variances for perturbing B.
+    - dx: observed dimension
+    - dh: latent dimension
+    """
+    probs = []
+    for i, var in enumerate(vars_perturb_B):
+        with util.NumpySeedContext(seed=i+1000):
+            B = np.random.randint(0, 2, (dx, dh))*2 - 1.0
+            b = np.random.randn(dx)
+            c = np.random.randn(dh)
+            p = density.GaussBernRBM(B, b, c)
+
+            B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
+            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c)
+
+            probs.append((var, p, gb_rbm))
+    return probs
 
 def get_pqsource_list(prob_label):
     """
@@ -236,6 +283,8 @@ def get_pqsource_list(prob_label):
     gvinc_d1_vs = [1, 1.5, 2, 2.5] 
     gvinc_d5_vs = [1, 1.5, 2, 2.5]
     gvd_ds = [1, 5, 10, 15]
+
+    gb_rbm_dx50_dh10_vars = [0, 0.01, 0.1, 1]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
             'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
@@ -265,7 +314,11 @@ def get_pqsource_list(prob_label):
             # of the first dimenion differs. d varies.
             'gvd': [(d, density.Normal(np.zeros(d), np.eye(d) ), 
                 data.DSNormal(np.zeros(d), np.diag(np.hstack((2, np.ones(d-1)))) ))
-                for d in gvd_ds]
+                for d in gvd_ds],
+
+            # Gaussian Bernoulli RBM. dx=50, dh=10 
+            'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_vars,
+                dx=50, dh=10, n=sample_size),
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )
