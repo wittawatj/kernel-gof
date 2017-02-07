@@ -166,12 +166,14 @@ class DSGaussBernRBM(DataSource):
         according to h ~ Discrete(sigmoid(2c)).
     - Draw x | h ~ N(B*h+b, I)
     """
-    def __init__(self, B, b, c):
+    def __init__(self, B, b, c, burnin=50):
         """
         B: a dx x dh matrix 
         b: a numpy array of length dx
         c: a numpy array of length dh
+        burnin: burn-in iterations when doring Gibbs sampling
         """
+        assert burnin >= 0
         dh = len(c)
         dx = len(b)
         assert B.shape[0] == dx
@@ -181,6 +183,7 @@ class DSGaussBernRBM(DataSource):
         self.B = B
         self.b = b
         self.c = c
+        self.burnin = burnin
 
     @staticmethod
     def sigmoid(x):
@@ -189,20 +192,54 @@ class DSGaussBernRBM(DataSource):
         """
         return 1.0/(1+np.exp(-x))
 
-    def sample(self, n, seed=3):
+    def _blocked_gibbs_next(self, X, H):
+        """
+        Sample from the mutual conditional distributions.
+        """
+        dh = H.shape[1]
+        n, dx = X.shape
+        B = self.B
+        b = self.b
+
+        # Draw H.
+        XBC = np.dot(X, self.B) + self.c
+        # Ph: n x dh matrix
+        Ph = DSGaussBernRBM.sigmoid(2*XBC)
+        # H: n x dh
+        # Don't know how to make this faster.
+        H = np.zeros((n, dh))
+        for i in range(n):
+            for j in range(dh):
+                H[i, j] = stats.bernoulli.rvs(p=Ph[i, j], size=1)*2 - 1.0
+        assert np.all(np.abs(H) - 1 <= 1e-6 )
+        # Draw X.
+        # mean: n x dx
+        mean = np.dot(H, B.T) + b
+        X = np.random.randn(n, dx) + mean
+        return X, H
+
+    def sample(self, n, seed=3, return_latent=False):
+        """
+        Sample by blocked Gibbs sampling
+        """
         B = self.B
         b = self.b
         c = self.c
         dh = len(c)
         dx = len(b)
+
+        # Initialize the state of the Markov chain
         with util.NumpySeedContext(seed=seed):
-            ph = DSGaussBernRBM.sigmoid(2.0*c)
-            # Draw h containing {-1, 1} values
-            # H: n x dh
-            H = np.random.randint(0, 1+1, (n, dh))*2.0 - 1
-            # mean: n x dx
-            mean = np.dot(H, B.T) + b
-            X = np.random.randn(n, dx) + mean
+            X = np.random.randn(n, dx)
+            H = np.random.randint(1, 2, (n, dh))*2 - 1.0
+        # burn-in
+        for t in range(self.burnin):
+            X, H = self._blocked_gibbs_next(X, H)
+        # sampling
+        X, H = self._blocked_gibbs_next(X, H)
+        if return_latent:
+            return Data(X), H
+        else:
             return Data(X)
 
 

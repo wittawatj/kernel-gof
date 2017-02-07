@@ -261,7 +261,7 @@ def gaussbern_rbm_probs(vars_perturb_B, dx=50, dh=10, n=sample_size):
             p = density.GaussBernRBM(B, b, c)
 
             B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
-            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c)
+            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=50)
 
             probs.append((var, p, gb_rbm))
     return probs
@@ -284,7 +284,7 @@ def get_pqsource_list(prob_label):
     gvinc_d5_vs = [1, 1.5, 2, 2.5]
     gvd_ds = [1, 5, 10, 15]
 
-    gb_rbm_dx50_dh10_vars = [0, 0.01, 0.1, 1]
+    gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
             'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),

@@ -126,12 +126,15 @@ class GaussBernRBM(UnnormalizedDensity):
         self.c = c
 
     def log_den(self, X):
-        raise NotImplementedError()
-        #Bh = np.dot(self.B, self.h)
-        #cth = np.dot(self.c, self.h)
-        #Xb = np.dot(X, self.b)
-        #unden = 0.5*np.dot(X, Bh) + cth + Xb - 0.5*np.sum(X**2, 1)
-        #return unden
+        B = self.B
+        b = self.b
+        c = self.c
+
+        XBC = np.dot(X, B) + c
+        unden = np.dot(X, b) - 0.5*np.sum(X**2, 1) + np.sum(np.log(np.exp(XBC)
+            + np.exp(-XBC)), 1)
+        assert len(unden) == X.shape[0]
+        return unden
 
     def grad_log(self, X):
         """
