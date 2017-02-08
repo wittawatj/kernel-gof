@@ -178,12 +178,12 @@ class FSSD(GofTest):
         return Xi
 
     @staticmethod
-    def power_criterion(p, data, k, test_locs, reg=1e-2):
+    def power_criterion(p, dat, k, test_locs, reg=1e-2):
         """
         Compute the mean and standard deviation of the statistic under H1.
         Return mean/sd.
         """
-        X = data.data()
+        X = dat.data()
         V = test_locs
         fssd = FSSD(p, k, V)
         fea_tensor = fssd.feature_tensor(X)

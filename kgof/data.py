@@ -155,6 +155,26 @@ class DSNormal(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
+class DSLaplace(DataSource):
+    """
+    A DataSource for a multivariate Laplace distribution.
+    """
+    def __init__(self, d, loc=0, scale=1):
+        """
+        loc: location 
+        scale: scale parameter.
+        Described in https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.laplace.html#numpy.random.laplace
+        """
+        assert d > 0
+        self.d = d
+        self.loc = loc
+        self.scale = scale
+
+    def sample(self, n, seed=4):
+        with util.NumpySeedContext(seed=seed):
+            X = np.random.laplace(loc=self.loc, scale=self.scale, size=(n, self.d))
+            return Data(X)
+
 class DSGaussBernRBM(DataSource):
     """
     A DataSource implementing a Gaussian-Bernoulli Restricted Boltzmann Machine.

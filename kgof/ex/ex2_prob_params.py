@@ -285,6 +285,7 @@ def get_pqsource_list(prob_label):
     gvd_ds = [1, 5, 10, 15]
 
     gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
+    glaplace_ds = [1, 5, 10, 15]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
             'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
@@ -319,6 +320,10 @@ def get_pqsource_list(prob_label):
             # Gaussian Bernoulli RBM. dx=50, dh=10 
             'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_vars,
                 dx=50, dh=10, n=sample_size),
+
+            # p: N(0, I), q: standard Laplace. Vary d
+            'glaplace': [(d, density.IsotropicNormal(np.zeros(d), 1), 
+                data.DSLaplace(d=d, loc=0, scale=1)) for d in glaplace_ds],
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )

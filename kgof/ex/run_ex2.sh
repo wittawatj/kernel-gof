@@ -11,6 +11,7 @@ screen -S ex2_kgof -X screen -t tab3 bash -lic "python ex2_prob_params.py gvinc_
 screen -S ex2_kgof -X screen -t tab4 bash -lic "python ex2_prob_params.py gmd_d10_ms"
 screen -S ex2_kgof -X screen -t tab5 bash -lic "python ex2_prob_params.py gvd"
 screen -S ex2_kgof -X screen -t tab6 bash -lic "python ex2_prob_params.py gbrbm_dx50_dh10"
+screen -S ex2_kgof -X screen -t tab7 bash -lic "python ex2_prob_params.py glaplace"
 
 
 #python ex2_prob_params.py urot_noise

@@ -26,6 +26,14 @@ class UnnormalizedDensity(object):
         """
         raise NotImplementedError()
 
+    def log_normalized_den(self, X):
+        """
+        Evaluate the exact normalized log density. The difference to log_den()
+        is that this method adds the normalizer. This method is not
+        compulsory. Subclasses do not need to override.
+        """
+        raise NotImplementedError()
+
     def grad_log(self, X):
         """
         Evaluate the gradients (with respect to the input) of the log density at
@@ -65,6 +73,10 @@ class IsotropicNormal(UnnormalizedDensity):
         variance = self.variance
         unden = -np.sum((X-mean)**2, 1)/(2.0*variance)
         return unden
+
+    def log_normalized_den(self, X):
+        d = self.dim()
+        return stats.multivariate_normal.logpdf(X, mean=self.mean, cov=self.variance*np.eye(d))
 
     def dim(self):
         return len(self.mean)
