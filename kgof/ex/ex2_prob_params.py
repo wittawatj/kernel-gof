@@ -114,8 +114,15 @@ def job_fssdJ1_opt(p, data_source, tr, te, r, J=1):
             'goftest': fssd_opt, 'opt_info': info,
             }
 
+#def job_fssdJ1_opt2(p, data_source, tr, te, r):
+#    return job_fssdJ1_opt(p, data_source, tr, te, r, J=1)
+
+
 def job_fssdJ5_opt(p, data_source, tr, te, r):
     return job_fssdJ1_opt(p, data_source, tr, te, r, J=5)
+
+#def job_fssdJ5_opt2(p, data_source, tr, te, r):
+#    return job_fssdJ1_opt(p, data_source, tr, te, r, J=5)
 
 def job_kstein_med(p, data_source, tr, te, r):
     """
@@ -214,6 +221,8 @@ from kgof.ex.ex2_prob_params import job_fssdJ2_med
 from kgof.ex.ex2_prob_params import job_fssdJ5_med
 from kgof.ex.ex2_prob_params import job_fssdJ1_opt
 from kgof.ex.ex2_prob_params import job_fssdJ5_opt
+#from kgof.ex.ex2_prob_params import job_fssdJ1_opt2
+#from kgof.ex.ex2_prob_params import job_fssdJ5_opt2
 from kgof.ex.ex2_prob_params import job_kstein_med
 from kgof.ex.ex2_prob_params import job_lin_kstein_med
 
@@ -323,7 +332,8 @@ def get_pqsource_list(prob_label):
 
             # p: N(0, I), q: standard Laplace. Vary d
             'glaplace': [(d, density.IsotropicNormal(np.zeros(d), 1), 
-                data.DSLaplace(d=d, loc=0, scale=1)) for d in glaplace_ds],
+                # Scaling of 1/sqrt(2) will make the variance 1.
+                data.DSLaplace(d=d, loc=0, scale=1.0/np.sqrt(2))) for d in glaplace_ds],
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )
