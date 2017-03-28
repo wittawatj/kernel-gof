@@ -224,7 +224,7 @@ class FSSD(GofTest):
         # compute the variance 
         # mu: d*J vector
         mu = np.mean(Tau, 0)
-        variance = 4*np.mean(np.dot(Tau, mu)**2) + 4*np.sum(mu**2)**2
+        variance = 4*np.mean(np.dot(Tau, mu)**2) - 4*np.sum(mu**2)**2
         return stat, variance
 
     @staticmethod 
