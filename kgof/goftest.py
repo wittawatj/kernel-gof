@@ -163,8 +163,8 @@ class FSSDH0SimCovDraw(H0Simulator):
         Tau = fea_tensor.reshape(n, -1)
         # Make sure it is a matrix i.e, np.cov returns a scalar when Tau is
         # 1d.
-        cov = np.cov(Tau.T) + np.zeros((1, 1))
-        #cov = Tau.T.dot(Tau/n)
+        #cov = np.cov(Tau.T) + np.zeros((1, 1))
+        cov = Tau.T.dot(Tau)/n + np.zeros((1, 1))
         n_simulate = self.n_simulate
 
         arr_nfssd, eigs = FSSD.list_simulate_spectral(cov, J, n_simulate,
@@ -343,7 +343,7 @@ class FSSD(GofTest):
         # n x d*J
         Tau = Xi.reshape(n, -1)
         t1 = np.sum(np.mean(Tau, 0)**2)*(n/float(n-1))
-        t2 = np.mean(Tau**2)/float(n-1)
+        t2 = np.sum(np.mean(Tau**2, 0))/float(n-1)
         # stat is the mean
         stat = t1 - t2
 
