@@ -10,6 +10,7 @@ import autograd
 import autograd.numpy as np
 import kgof.config as config
 import kgof.util as util
+import kgof.data as data
 import scipy.stats as stats
 
 class UnnormalizedDensity(object):
@@ -33,6 +34,14 @@ class UnnormalizedDensity(object):
         compulsory. Subclasses do not need to override.
         """
         raise NotImplementedError()
+
+    def get_datasource(self):
+        """
+        Return a DataSource that allows sampling from this density.
+        May return None if no DataSource is implemented.
+        Implementation of this method is not enforced in the subclasses.
+        """
+        return None
 
     def grad_log(self, X):
         """
@@ -78,8 +87,12 @@ class IsotropicNormal(UnnormalizedDensity):
         d = self.dim()
         return stats.multivariate_normal.logpdf(X, mean=self.mean, cov=self.variance*np.eye(d))
 
+    def get_datasource(self):
+        return data.DSIsotropicNormal(self.mean, self.variance)
+
     def dim(self):
         return len(self.mean)
+
 
 class Normal(UnnormalizedDensity):
     """
@@ -107,6 +120,9 @@ class Normal(UnnormalizedDensity):
         X0prec = np.dot(X0, self.prec)
         unden = -np.sum(X0prec*X0, 1)/2.0
         return unden
+
+    def get_datasource(self):
+        return data.DSNormal(self.mean, self.cov)
 
     def dim(self):
         return len(self.mean)
@@ -166,6 +182,9 @@ class GaussBernRBM(UnnormalizedDensity):
         T = np.dot(Phi, self.B.T)
         S = self.b - X + T
         return S
+
+    def get_datasource(self):
+        return data.DSGaussBernRBM(self.B, self.b, self.c)
 
     def dim(self):
         return len(self.b)

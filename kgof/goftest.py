@@ -17,16 +17,17 @@ import scipy
 import scipy.stats as stats
 
 class GofTest(object):
-    """Abstract class for a goodness-of-fit test.
-    Many subclasses will likely take in a Density object in the constructor,
-    representing a fixed distribution to compare against.
+    """
+    Abstract class for a goodness-of-fit test.
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, alpha):
+    def __init__(self, p, alpha):
         """
+        p: an UnnormalizedDensity
         alpha: significance level of the test
         """
+        self.p = p
         self.alpha = alpha
 
     @abstractmethod
@@ -49,8 +50,129 @@ class GofTest(object):
         """Compute the test statistic"""
         raise NotImplementedError()
 
-
+# end of GofTest
 #------------------------------------------------------
+
+class H0Simulator(object):
+    """
+    An abstract class representing a simulator to draw samples from the 
+    null distribution. For some tests, these are needed to conduct the test.
+    """
+    __metaclass__ = ABCMeta
+
+    def __init__(self, n_simulate, seed):
+        """
+        n_simulate: The number of times to simulate from the null distribution.
+            Must be a positive integer.
+        seed: a random seed
+        """
+        assert n_simulate > 0
+        self.n_simulate = n_simulate
+        self.seed = seed
+
+    @abstractmethod
+    def simulate(self, gof, dat):
+        """
+        gof: a GofTest
+        dat: a Data (observed data)
+
+        Simulate from the null distribution and return a dictionary. 
+        One of the item is 
+            sim_stats: a numpy array of stats.
+        """
+        raise NotImplementedError()
+
+# end of H0Simulator
+#-------------------
+
+class FSSDH0SimCovObs(H0Simulator):
+    """
+    An asymptotic null distribution simulator for FSSD.  Simulate from the
+    asymptotic null distribution given by the weighted sum of chi-squares. The
+    eigenvalues (weights) are computed from the covarince matrix wrt. the
+    observed sample. 
+    This is not the correct null distribution; but has the correct asymptotic
+    types-1 error at alpha.
+    """
+    def __init__(self, n_simulate=2000, seed=10):
+        super(FSSDH0SimCovObs, self).__init__(n_simulate, seed)
+
+    def simulate(self, gof, dat, fea_tensor=None):
+        """
+        fea_tensor: n x d x J feature matrix
+        """
+        assert isinstance(gof, FSSD)
+        n_simulate = self.n_simulate
+        seed = self.seed
+        if fea_tensor is None:
+            _, fea_tensor = gof.compute_stat(dat, return_feature_tensor=True)
+
+        J = fea_tensor.shape[2]
+        X = dat.data()
+        n = X.shape[0]
+        # n x d*J
+        Tau = fea_tensor.reshape(n, -1)
+        # Make sure it is a matrix i.e, np.cov returns a scalar when Tau is
+        # 1d.
+        cov = np.cov(Tau.T) + np.zeros((1, 1))
+        #cov = Tau.T.dot(Tau/n)
+
+        arr_nfssd, eigs = FSSD.list_simulate_spectral(cov, J, n_simulate,
+                seed=self.seed)
+        return {'sim_stats': arr_nfssd}
+
+# end of FSSDH0SimCovObs
+#-----------------------
+
+class FSSDH0SimCovDraw(H0Simulator):
+    """
+    An asymptotic null distribution simulator for FSSD.  Simulate from the
+    asymptotic null distribution given by the weighted sum of chi-squares. The
+    eigenvalues (weights) are computed from the covarince matrix wrt. the
+    sample drawn from p (the density to test against). 
+    
+    - The UnnormalizedDensity p is required to implement get_datasource() method.
+    """
+    def __init__(self, n_draw=2000, n_simulate=2000, seed=10):
+        """
+        n_draw: number of samples to draw from the UnnormalizedDensity p
+        """
+        super(FSSDH0SimCovDraw, self).__init__(n_simulate, seed)
+        self.n_draw = n_draw
+
+    def simulate(self, gof, dat, fea_tensor=None):
+        """
+        fea_tensor: n x d x J feature matrix
+
+        This method does not use dat.
+        """
+        dat = None
+        assert isinstance(gof, FSSD)
+        # p = an UnnormalizedDensity
+        p = gof.p
+        ds = p.get_datasource()
+        if ds is None:
+            raise ValueError('DataSource associated with p must be available.')
+        Xdraw = ds.sample(n=self.n_draw, seed=self.seed)
+        _, fea_tensor = gof.compute_stat(Xdraw, return_feature_tensor=True)
+
+        X = Xdraw.data()
+        J = fea_tensor.shape[2]
+        n = self.n_draw
+        # n x d*J
+        Tau = fea_tensor.reshape(n, -1)
+        # Make sure it is a matrix i.e, np.cov returns a scalar when Tau is
+        # 1d.
+        cov = np.cov(Tau.T) + np.zeros((1, 1))
+        #cov = Tau.T.dot(Tau/n)
+        n_simulate = self.n_simulate
+
+        arr_nfssd, eigs = FSSD.list_simulate_spectral(cov, J, n_simulate,
+                seed=self.seed)
+        return {'sim_stats': arr_nfssd}
+
+# end of FSSDH0SimCovDraw
+#-----------------------
 
 class FSSD(GofTest):
     """
@@ -64,40 +186,44 @@ class FSSD(GofTest):
     p is specified to the constructor in the form of an UnnormalizedDensity.
     """
 
-    def __init__(self, p, k, V, alpha=0.01, n_simulate=1000, seed=10):
+    #NULLSIM_* are constants used to choose the way to simulate from the null 
+    #distribution to do the test.
+
+
+    # Same as NULLSIM_COVQ; but assume that sample can be drawn from p. 
+    # Use the drawn sample to compute the covariance.
+    NULLSIM_COVP = 1
+
+
+    def __init__(self, p, k, V, null_sim, alpha=0.01):
         """
         p: an instance of UnnormalizedDensity
         k: a DifferentiableKernel object
         V: J x dx numpy array of J locations to test the difference
+        null_sim: an instance of H0Simulator for simulating from the null distribution.
         alpha: significance level 
-        n_simulate: The number of times to simulate from the null distribution
-            (weighted sum of chi-squares). Must be a positive integer.
         """
-        super(FSSD, self).__init__(alpha)
-        self.p = p
+        super(FSSD, self).__init__(p, alpha)
         self.k = k
         self.V = V 
-        self.n_simulate = n_simulate
-        self.seed = seed
+        self.null_sim = null_sim
 
     def perform_test(self, dat, return_simulated_stats=False):
+        """
+        dat: an instance of Data
+        """
         with util.ContextTimer() as t:
             alpha = self.alpha
-            n_simulate = self.n_simulate
+            null_sim = self.null_sim
+            n_simulate = null_sim.n_simulate
             X = dat.data()
             n = X.shape[0]
             J = self.V.shape[0]
 
             nfssd, fea_tensor = self.compute_stat(dat, return_feature_tensor=True)
-            # n x d*J
-            Tau = fea_tensor.reshape(n, -1)
-            # Make sure it is a matrix i.e, np.cov returns a scalar when Tau is
-            # 1d.
-            cov = np.cov(Tau.T) + np.zeros((1, 1))
-            #cov = Tau.T.dot(Tau/n)
+            sim_results = null_sim.simulate(self, dat, fea_tensor)
+            arr_nfssd = sim_results['sim_stats']
 
-            arr_nfssd, eigs = FSSD.list_simulate_spectral(cov, J, n_simulate,
-                    seed=self.seed)
             # approximate p-value with the permutations 
             pvalue = np.mean(arr_nfssd > nfssd)
 
@@ -151,6 +277,7 @@ class FSSD(GofTest):
         return an n x d x J numpy array
         """
         k = self.k
+        J = self.V.shape[0]
         n, d = X.shape
         # n x d matrix of gradients
         grad_logp = self.p.grad_log(X)
@@ -174,7 +301,7 @@ class FSSD(GofTest):
         #print grad_logp
         #print 'K'
         #print K
-        Xi = grad_logp_K + dKdV
+        Xi = (grad_logp_K + dKdV)/np.sqrt(d*J)
         return Xi
 
     @staticmethod
@@ -185,7 +312,7 @@ class FSSD(GofTest):
         """
         X = dat.data()
         V = test_locs
-        fssd = FSSD(p, k, V)
+        fssd = FSSD(p, k, V, null_sim=None)
         fea_tensor = fssd.feature_tensor(X)
         u_mean, u_variance = FSSD.ustat_h1_mean_variance(fea_tensor,
                 return_variance=True)
@@ -210,11 +337,11 @@ class FSSD(GofTest):
         #print Xi
         #assert np.all(util.is_real_num(Xi))
         n = Xi.shape[0]
-        assert n>1, 'Need n > 1 to compute the mean of the statistic.'
+        assert n > 1, 'Need n > 1 to compute the mean of the statistic.'
         # n x d*J
         Tau = Xi.reshape(n, -1)
-        t1 = np.sum(np.sum(Tau/np.sqrt(n-1), 0)**2 )
-        t2 = np.sum( (Tau/np.sqrt(n-1))**2 )
+        t1 = np.sum(np.mean(Tau, 0)**2)*(n/float(n-1))
+        t2 = np.mean(Tau**2)/float(n-1)
         # stat is the mean
         stat = t1 - t2
 
@@ -427,7 +554,7 @@ class GaussFSSD(FSSD):
         
         #make sure that the optimized gwidth is not too small or too large.
         fac_min = 1e-2 
-        fac_max = 5e2
+        fac_max = 1e3
         med2 = util.meddistance(X, subsample=1000)**2
         if gwidth_lb is None:
             gwidth_lb = max(fac_min*med2, 1e-3)
@@ -518,8 +645,7 @@ class KernelSteinTest(GofTest):
         n_simulate: The number of times to simulate from the null distribution
             by bootstrapping. Must be a positive integer.
         """
-        super(KernelSteinTest, self).__init__(alpha)
-        self.p = p
+        super(KernelSteinTest, self).__init__(p, alpha)
         self.k = k
         self.bootstrapper = bootstrapper
         self.n_simulate = n_simulate
@@ -622,8 +748,7 @@ class LinearKernelSteinTest(GofTest):
         n_simulate: The number of times to simulate from the null distribution
             by bootstrapping. Must be a positive integer.
         """
-        super(LinearKernelSteinTest, self).__init__(alpha)
-        self.p = p
+        super(LinearKernelSteinTest, self).__init__(p, alpha)
         self.k = k
         self.seed = seed
 

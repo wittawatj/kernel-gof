@@ -37,7 +37,7 @@ All the job functions return a dictionary with the following keys:
     - time_secs: run time in seconds 
 """
 
-def job_fssdJ1_med(p, data_source, tr, te, r, J=1):
+def job_fssdJ1q_med(p, data_source, tr, te, r, J=1, null_sim=None):
     """
     FSSD test with a Gaussian kernel, where the test locations are randomized,
     and the Gaussian width is set with the median heuristic. Use full sample.
@@ -48,6 +48,8 @@ def job_fssdJ1_med(p, data_source, tr, te, r, J=1):
     tr, te: Data
     r: trial number (positive integer)
     """
+    if null_sim is None:
+        null_sim = gof.FSSDH0SimCovObs(n_simulate=2000, seed=r)
 
     # full data
     data = tr + te
@@ -58,26 +60,25 @@ def job_fssdJ1_med(p, data_source, tr, te, r, J=1):
         k = kernel.KGauss(med**2)
         V = util.fit_gaussian_draw(X, J, seed=r+1)
 
-        fssd_med = gof.FSSD(p, k, V, alpha=alpha, n_simulate=2000, seed=r)
+        fssd_med = gof.FSSD(p, k, V, null_sim=null_sim, alpha=alpha)
         fssd_med_result = fssd_med.perform_test(data)
     return { 'test_result': fssd_med_result, 'time_secs': t.secs}
 
-def job_fssdJ2_med(p, data_source, tr, te, r):
+
+def job_fssdJ5q_med(p, data_source, tr, te, r):
     """
     FSSD. J=2
     """
-    return job_fssdJ1_med(p, data_source, tr, te, r, J=2)
+    return job_fssdJ1q_med(p, data_source, tr, te, r, J=5)
 
-def job_fssdJ5_med(p, data_source, tr, te, r):
-    """
-    FSSD. J=2
-    """
-    return job_fssdJ1_med(p, data_source, tr, te, r, J=5)
 
-def job_fssdJ1_opt(p, data_source, tr, te, r, J=1):
+def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
     """
     FSSD with optimization on tr. Test on te. Use a Gaussian kernel.
     """
+    if null_sim is None:
+        null_sim = gof.FSSDH0SimCovObs(n_simulate=2000, seed=r)
+
     Xtr = tr.data()
     with util.ContextTimer() as t:
         # Use grid search to initialize the gwidth
@@ -98,9 +99,9 @@ def job_fssdJ1_opt(p, data_source, tr, te, r, J=1):
         ops = {
             'reg': 1e-2,
             'max_iter': 50,
-            'tol_fun': 1e-3,
+            'tol_fun': 1e-4,
             'disp': True,
-            'locs_bounds_frac':1.0,
+            'locs_bounds_frac':100.0,
             'gwidth_lb': 1e-2,
             }
 
@@ -108,21 +109,22 @@ def job_fssdJ1_opt(p, data_source, tr, te, r, J=1):
                 gwidth, V0, **ops) 
         # Use the optimized parameters to construct a test
         k_opt = kernel.KGauss(gwidth_opt)
-        fssd_opt = gof.FSSD(p, k_opt, V_opt, alpha=alpha, n_simulate=2000, seed=r)
+        fssd_opt = gof.FSSD(p, k_opt, V_opt, null_sim=null_sim, alpha=alpha)
         fssd_opt_result = fssd_opt.perform_test(te)
     return {'test_result': fssd_opt_result, 'time_secs': t.secs, 
             'goftest': fssd_opt, 'opt_info': info,
             }
 
-#def job_fssdJ1_opt2(p, data_source, tr, te, r):
-#    return job_fssdJ1_opt(p, data_source, tr, te, r, J=1)
+def job_fssdJ5q_opt(p, data_source, tr, te, r):
+    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5)
 
-
-def job_fssdJ5_opt(p, data_source, tr, te, r):
-    return job_fssdJ1_opt(p, data_source, tr, te, r, J=5)
-
-#def job_fssdJ5_opt2(p, data_source, tr, te, r):
-#    return job_fssdJ1_opt(p, data_source, tr, te, r, J=5)
+def job_fssdJ5p_opt(p, data_source, tr, te, r):
+    """
+    The suffix p means that p is sampled to get a sample for computing the
+    covariance matrix under H0.
+    """
+    null_sim = gof.FSSDH0SimCovDraw(n_draw=2000, n_simulate=2000, seed=r)
+    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5, null_sim=null_sim)
 
 def job_kstein_med(p, data_source, tr, te, r):
     """
@@ -137,7 +139,7 @@ def job_kstein_med(p, data_source, tr, te, r):
         med = util.meddistance(X, subsample=1000)
         k = kernel.KGauss(med**2)
 
-        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=500, seed=r)
+        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=400, seed=r)
         kstein_result = kstein.perform_test(data)
     return { 'test_result': kstein_result, 'time_secs': t.secs}
 
@@ -216,13 +218,11 @@ class Ex2Job(IndependentJob):
 # This import is needed so that pickle knows about the class Ex2Job.
 # pickle is used when collecting the results from the submitted jobs.
 from kgof.ex.ex2_prob_params import Ex2Job
-from kgof.ex.ex2_prob_params import job_fssdJ1_med
-from kgof.ex.ex2_prob_params import job_fssdJ2_med
-from kgof.ex.ex2_prob_params import job_fssdJ5_med
-from kgof.ex.ex2_prob_params import job_fssdJ1_opt
-from kgof.ex.ex2_prob_params import job_fssdJ5_opt
-#from kgof.ex.ex2_prob_params import job_fssdJ1_opt2
-#from kgof.ex.ex2_prob_params import job_fssdJ5_opt2
+from kgof.ex.ex2_prob_params import job_fssdJ1q_med
+from kgof.ex.ex2_prob_params import job_fssdJ5q_med
+from kgof.ex.ex2_prob_params import job_fssdJ1q_opt
+from kgof.ex.ex2_prob_params import job_fssdJ5q_opt
+from kgof.ex.ex2_prob_params import job_fssdJ5p_opt
 from kgof.ex.ex2_prob_params import job_kstein_med
 from kgof.ex.ex2_prob_params import job_lin_kstein_med
 
@@ -239,9 +239,10 @@ tr_proportion = 0.5
 reps = 100
 
 method_job_funcs = [ 
-        job_fssdJ1_med, job_fssdJ5_med, 
-        job_fssdJ1_opt, 
-        job_fssdJ5_opt,
+        job_fssdJ1q_med, job_fssdJ5q_med, 
+        job_fssdJ1q_opt, 
+        job_fssdJ5q_opt,
+        job_fssdJ5p_opt,
         job_kstein_med, 
         job_lin_kstein_med,
        ]

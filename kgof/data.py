@@ -191,7 +191,7 @@ class DSGaussBernRBM(DataSource):
         B: a dx x dh matrix 
         b: a numpy array of length dx
         c: a numpy array of length dh
-        burnin: burn-in iterations when doring Gibbs sampling
+        burnin: burn-in iterations when doing Gibbs sampling
         """
         assert burnin >= 0
         dh = len(c)

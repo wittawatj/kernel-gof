@@ -6,21 +6,29 @@ import kgof.glo as glo
 import matplotlib.pyplot as plt
 import autograd.numpy as np
 
+def get_func_tuples():
+    """
+    Return a list of tuples where each tuple is of the form
+        (func_name used in the experiments, label name, plot line style)
+    """
+    func_tuples = [
+            ('job_fssdJ1q_med', 'FSSDq-med J1', 'b--s'),
+            ('job_fssdJ5q_med', 'FSSDq-med J5', 'r--s'),
+            ('job_fssdJ1q_opt', 'FSSDq-opt J1', 'b-s'),
+            ('job_fssdJ5q_opt', 'FSSDq-opt J5', 'r-s'),
+            ('job_fssdJ5p_opt', 'FSSDp-opt J5', 'm-s'),
+            ('job_fssdJ1q_opt2', 'FSSDq-opt2 J1', 'b-^'),
+            ('job_fssdJ5q_opt2', 'FSSDq-opt2 J5', 'r-^'),
+            ('job_kstein_med', 'KStein', 'g-*'),
+            ('job_lin_kstein_med', 'L-KStein', 'g--o'),
+            ]
+    return func_tuples
+
 def get_func2label_map():
     # map: job_func_name |-> plot label
-    func_label_pairs = [
-            ('job_fssdJ1_med', 'FSSD-med J1'),
-            ('job_fssdJ2_med', 'FSSD-med J2'),
-            ('job_fssdJ5_med', 'FSSD-med J5'),
-            ('job_fssdJ1_opt', 'FSSD-opt J1'),
-            ('job_fssdJ5_opt', 'FSSD-opt J5'),
-            ('job_fssdJ1_opt2', 'FSSD-opt2 J1'),
-            ('job_fssdJ5_opt2', 'FSSD-opt2 J5'),
-            ('job_kstein_med', 'KStein'),
-            ('job_lin_kstein_med', 'L-KStein'),
-            ]
+    func_tuples = get_func_tuples()
     #M = {k:v for (k,v) in zip(func_names, labels)}
-    M = {k:v for (k,v) in func_label_pairs}
+    M = {k:v for (k,v,_) in func_tuples}
     return M
 
 
@@ -30,17 +38,8 @@ def func_plot_fmt_map():
     """
     # line_styles = ['o-', 'x-',  '*-', '-_', 'D-', 'h-', '+-', 's-', 'v-', 
     #               ',-', '1-']
-    M = {}
-    M['job_fssdJ1_med'] = 'b--s'
-    M['job_fssdJ2_med'] = 'r--s'
-    M['job_fssdJ5_med'] = 'r--s'
-
-    M['job_fssdJ1_opt'] = 'b-s'
-    M['job_fssdJ5_opt'] = 'r-s'
-    M['job_fssdJ1_opt2'] = 'b-^'
-    M['job_fssdJ5_opt2'] = 'r-^'
-    M['job_kstein_med'] = 'g-*'
-    M['job_lin_kstein_med'] = 'g--o'
+    func_tuples = get_func_tuples()
+    M = {k:v for (k, _, v) in func_tuples}
     return M
 
 

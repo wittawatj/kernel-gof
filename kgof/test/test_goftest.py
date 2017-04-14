@@ -48,7 +48,8 @@ class TestFSSD(unittest.TestCase):
 
                 # random test locations
                 V = util.fit_gaussian_draw(X, J, seed=seed+1)
-                fssd = gof.FSSD(isonorm, k, V, alpha=alpha, n_simulate=200, seed=2)
+                null_sim = gof.FSSDH0SimCovObs(n_simulate=200, seed=3)
+                fssd = gof.FSSD(isonorm, k, V, null_sim=null_sim, alpha=alpha)
 
                 tresult = fssd.perform_test(dat, return_simulated_stats=True)
 
@@ -78,7 +79,9 @@ class TestFSSD(unittest.TestCase):
 
                 # random test locations
                 V = util.fit_gaussian_draw(X, J, seed=seed+1)
-                fssd = gof.FSSD(isonorm, k, V, alpha=alpha, n_simulate=200, seed=2)
+
+                null_sim = gof.FSSDH0SimCovObs(n_simulate=200, seed=3)
+                fssd = gof.FSSD(isonorm, k, V, null_sim=null_sim, alpha=alpha)
                 fea_tensor = fssd.feature_tensor(X)
 
                 u_mean, u_variance = gof.FSSD.ustat_h1_mean_variance(fea_tensor)
