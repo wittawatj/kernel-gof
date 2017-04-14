@@ -147,7 +147,7 @@ class FSSDH0SimCovDraw(H0Simulator):
         This method does not use dat.
         """
         dat = None
-        assert isinstance(gof, FSSD)
+        #assert isinstance(gof, FSSD)
         # p = an UnnormalizedDensity
         p = gof.p
         ds = p.get_datasource()
@@ -244,7 +244,8 @@ class FSSD(GofTest):
 
         # n x d x J
         Xi = self.feature_tensor(X)
-        stat = FSSD.ustat_h1_mean_variance(Xi, return_variance=False)
+        unscaled_mean = FSSD.ustat_h1_mean_variance(Xi, return_variance=False)
+        stat = n*unscaled_mean
 
         #print 'Xi: {0}'.format(Xi)
         #print 'Tau: {0}'.format(Tau)
@@ -302,6 +303,7 @@ class FSSD(GofTest):
         #print 'K'
         #print K
         Xi = (grad_logp_K + dKdV)/np.sqrt(d*J)
+        #Xi = (grad_logp_K + dKdV)
         return Xi
 
     @staticmethod
@@ -446,7 +448,7 @@ class GaussFSSD(FSSD):
         super(GaussFSSD, self).__init__(p, k, V, alpha, n_simulate, seed)
 
     @staticmethod 
-    def power_criterion(p, dat, gwidth, test_locs, reg=1e-4):
+    def power_criterion(p, dat, gwidth, test_locs, reg=1e-2):
         k = kernel.KGauss(gwidth)
         return FSSD.power_criterion(p, dat, k, test_locs, reg)
 
@@ -455,6 +457,8 @@ class GaussFSSD(FSSD):
         """
         Optimize parameters by calling optimize_locs_widths(). Automatically 
         initialize the test locations and the Gaussian width.
+
+        Return optimized locations, Gaussian width, optimization info
         """
         assert J>0
         # Use grid search to initialize the gwidth
@@ -502,7 +506,7 @@ class GaussFSSD(FSSD):
 
     @staticmethod
     def optimize_locs_widths(p, dat, gwidth0, test_locs0, reg=1e-2,
-            max_iter=100,  tol_fun=1e-3, disp=False, locs_bounds_frac=0.5,
+            max_iter=100,  tol_fun=1e-3, disp=False, locs_bounds_frac=100,
             gwidth_lb=None, gwidth_ub=None,
             ):
         """
@@ -554,12 +558,12 @@ class GaussFSSD(FSSD):
         
         #make sure that the optimized gwidth is not too small or too large.
         fac_min = 1e-2 
-        fac_max = 1e3
+        fac_max = 1e2
         med2 = util.meddistance(X, subsample=1000)**2
         if gwidth_lb is None:
             gwidth_lb = max(fac_min*med2, 1e-3)
         if gwidth_ub is None:
-            gwidth_ub = min(fac_max*med2, 1e6)
+            gwidth_ub = min(fac_max*med2, 1e5)
 
         # Make a box to bound test locations
         X_std = np.std(X, axis=0)
