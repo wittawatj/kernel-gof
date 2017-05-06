@@ -1,4 +1,7 @@
 # kgof
+
+[![Build Status](https://travis-ci.com/wittawatj/kgof.svg?token=yWUaYGwontVUwf9G8fLY&branch=master)](https://travis-ci.com/wittawatj/kgof)
+
 Linear-time kernel goodness-of-fit test
 
 * When  reproducing the results, it will be necessary to modify the dictionary

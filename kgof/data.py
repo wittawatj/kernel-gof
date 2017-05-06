@@ -175,6 +175,26 @@ class DSLaplace(DataSource):
             X = np.random.laplace(loc=self.loc, scale=self.scale, size=(n, self.d))
             return Data(X)
 
+class DSTDistribution(DataSource):
+    """
+    A DataSource for a univariate T-distribution.
+    """
+    def __init__(self, df):
+        """
+        df: degrees of freedom
+        """
+        assert df > 0
+        self.df = df 
+
+    def sample(self, n, seed=5):
+        with util.NumpySeedContext(seed=seed):
+            X = stats.t.rvs(df=self.df, size=n)
+            X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSTDistribution
+
+
 class DSGaussBernRBM(DataSource):
     """
     A DataSource implementing a Gaussian-Bernoulli Restricted Boltzmann Machine.
