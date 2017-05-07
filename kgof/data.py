@@ -281,5 +281,33 @@ class DSGaussBernRBM(DataSource):
             return Data(X), H
         else:
             return Data(X)
+# end class DSGaussBernRBM
+
+class DSNonHomPoissonLinear(DataSource):
+    """
+    A DataSource implementing non homogenous poisson process.
+    """
+    def __init__(self, b):
+        """
+        b: slope in of the linear function
+        lambda_X = 1 + bX
+        """
+        self.b = b
+    
+    def nonhom_linear(self,size):
+        b = self.b
+        u = np.random.rand(size)
+        F_l = np.sqrt(-2/b*np.log(1-u)+1/(b**2))-1/b
+        return F_l
+        
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = self.nonhom_linear(size=n)
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSNonHomPoissonLinear
 
 

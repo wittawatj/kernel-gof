@@ -191,3 +191,24 @@ class GaussBernRBM(UnnormalizedDensity):
 
 # end GaussBernRBM
 
+class NonHomPoissonLinear(UnnormalizedDensity):
+    """
+    Unnormalized density of inter-arrival times from nonhomogeneous poisson process with linear intensity function.
+    lambda = 1 + bt
+    """
+    def __init__(self, b):
+        """
+        b: slope of the linear function 
+        """
+        self.b = b 
+    
+    def log_den(self, X):
+        b = self.b
+        unden = -np.sum(0.5*b*X**2+X-np.log(1+b*X))
+        return unden
+
+    def dim(self):
+        return 1
+
+# end NonHomPoissonLinear
+
