@@ -92,7 +92,7 @@ def job_fssdq_opt(p, data_source, tr, te, r, J, null_sim=None):
         logging.info('After grid search, gwidth=%.3g'%gwidth)
         
         ops = {
-            'reg': 1e-2,
+            'reg': 5e-2,
             'max_iter': 50,
             'tol_fun': 1e-4,
             'disp': True,
@@ -195,7 +195,8 @@ reps = 50
 # list of number of test locations/frequencies
 #Js = [5, 10, 15, 20, 25]
 #Js = range(2, 6+1)
-Js = [2**x for x in range(5)]
+#Js = [2**x for x in range(5)]
+Js = [2, 8, 32, 64, 128]
 
 method_job_funcs = [ job_fssdq_med, job_fssdq_opt, job_fssdp_opt, ]
 
@@ -316,7 +317,7 @@ def run_problem(prob_label):
     logger.info("Collecting results")
     job_results = np.empty((reps, len(Js), n_methods), dtype=object)
     for r in range(reps):
-        for ji, J in enumerate(prob_params):
+        for ji, J in enumerate(Js):
             for mi, f in enumerate(method_job_funcs):
                 logger.info("Collecting result (%s, r=%d, J=%rd)" %
                         (f.__name__, r, J))
@@ -334,7 +335,7 @@ def run_problem(prob_label):
 
     # save results 
     results = {'job_results': job_results, 'data_source': ds, 
-            'alpha': alpha, 'repeats': reps, 
+            'alpha': alpha, 'repeats': reps, 'Js': Js,
             'p': p,
             'tr_proportion': tr_proportion,
             'method_job_funcs': method_job_funcs, 'prob_label': prob_label,
@@ -342,7 +343,7 @@ def run_problem(prob_label):
             }
     
     # class name 
-    fname = 'ex%d-%s-me%d_n%d_rs%d_Jmi%.3f_Jma%.3f_a%.3f_trp%.2f.p' \
+    fname = 'ex%d-%s-me%d_n%d_rs%d_Jmi%d_Jma%d_a%.3f_trp%.2f.p' \
         %(ex, prob_label, n_methods, sample_size, reps, min(Js),
                 max(Js), alpha, tr_proportion)
 
