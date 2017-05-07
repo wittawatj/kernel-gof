@@ -294,7 +294,6 @@ class DSNonHomPoissonLinear(DataSource):
         lambda_X = 1 + bX
         """
         self.b = b
-        #raise NotImplementedError('This class is not yet complete.')
     
     def nonhom_linear(self,size):
         b = self.b
