@@ -294,12 +294,15 @@ class DSNonHomPoissonLinear(DataSource):
         lambda_X = 1 + bX
         """
         self.b = b
-        raise NotImplementedError('This class is not yet complete.')
+        #raise NotImplementedError('This class is not yet complete.')
     
     def nonhom_linear(self,size):
         b = self.b
         u = np.random.rand(size)
-        F_l = np.sqrt(-2/b*np.log(1-u)+1/(b**2))-1/b
+        if b = 0:
+            F_l = -np.log(1-u)
+        else:
+            F_l = np.sqrt(-2.0/b*np.log(1-u)+1.0/(b**2))-1.0/b
         return F_l
         
     def sample(self, n, seed=3):

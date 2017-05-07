@@ -204,11 +204,11 @@ class NonHomPoissonLinear(UnnormalizedDensity):
         b: slope of the linear function 
         """
         self.b = b 
-        raise NotImplementedError('This class is not yet complete.')
+        # raise NotImplementedError('This class is not yet complete.')
     
     def log_den(self, X):
         b = self.b
-        unden = -np.sum(0.5*b*X**2+X-np.log(1+b*X), 1)
+        unden = -np.sum(0.5*b*X**2+X-np.log(1.0+b*X), 1)
         return unden
 
     def dim(self):
