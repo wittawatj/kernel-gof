@@ -46,7 +46,10 @@ class UnnormalizedDensity(object):
     def grad_log(self, X):
         """
         Evaluate the gradients (with respect to the input) of the log density at
-        each of the n points in X. This is the score function.
+        each of the n points in X. This is the score function. Given an
+        implementation of log_den(), this method will automatically work.
+        Subclasses may override this if a more efficient implementation is
+        available.
 
         X: n x d numpy array.
 

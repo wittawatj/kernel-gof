@@ -132,6 +132,7 @@ class DSIsotropicNormal(DataSource):
             X = np.random.randn(n, d)*np.sqrt(variance) + mean
             return Data(X)
 
+
 class DSNormal(DataSource):
     """
     A DataSource implementing a multivariate Gaussian.

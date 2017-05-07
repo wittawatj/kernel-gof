@@ -1,6 +1,7 @@
-"""Simulation to examine the P(reject) as the parameters for each problem are 
-varied. What varies will depend on the problem."""
-
+"""
+Simulation to examine the P(reject) as the number of test locations
+increases.  
+"""
 __author__ = 'wittawat'
 
 import kgof
@@ -37,7 +38,7 @@ All the job functions return a dictionary with the following keys:
     - time_secs: run time in seconds 
 """
 
-def job_fssdJ1q_med(p, data_source, tr, te, r, J=1, null_sim=None):
+def job_fssdq_med(p, data_source, tr, te, r, J, null_sim=None):
     """
     FSSD test with a Gaussian kernel, where the test locations are randomized,
     and the Gaussian width is set with the median heuristic. Use full sample.
@@ -65,14 +66,8 @@ def job_fssdJ1q_med(p, data_source, tr, te, r, J=1, null_sim=None):
     return { 'test_result': fssd_med_result, 'time_secs': t.secs}
 
 
-def job_fssdJ5q_med(p, data_source, tr, te, r):
-    """
-    FSSD. J=2
-    """
-    return job_fssdJ1q_med(p, data_source, tr, te, r, J=5)
 
-
-def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
+def job_fssdq_opt(p, data_source, tr, te, r, J, null_sim=None):
     """
     FSSD with optimization on tr. Test on te. Use a Gaussian kernel.
     """
@@ -115,65 +110,20 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
             'goftest': fssd_opt, 'opt_info': info,
             }
 
-def job_fssdJ5q_opt(p, data_source, tr, te, r):
-    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5)
-
-def job_fssdJ5p_opt(p, data_source, tr, te, r):
+def job_fssdp_opt(p, data_source, tr, te, r, J):
     """
     The suffix p means that p is sampled to get a sample for computing the
     covariance matrix under H0.
     """
     null_sim = gof.FSSDH0SimCovDraw(n_draw=2000, n_simulate=2000, seed=r)
-    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5, null_sim=null_sim)
-
-def job_fssdJ10p_opt(p, data_source, tr, te, r):
-    """
-    The suffix p means that p is sampled to get a sample for computing the
-    covariance matrix under H0.
-    """
-    null_sim = gof.FSSDH0SimCovDraw(n_draw=2000, n_simulate=2000, seed=r)
-    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=10, null_sim=null_sim)
-
-def job_kstein_med(p, data_source, tr, te, r):
-    """
-    Kernel Stein discrepancy test of Liu et al., 2016 and Chwialkowski et al.,
-    2016. Use full sample.
-    """
-    # full data
-    data = tr + te
-    X = data.data()
-    with util.ContextTimer() as t:
-        # median heuristic 
-        med = util.meddistance(X, subsample=1000)
-        k = kernel.KGauss(med**2)
-
-        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=400, seed=r)
-        kstein_result = kstein.perform_test(data)
-    return { 'test_result': kstein_result, 'time_secs': t.secs}
-
-def job_lin_kstein_med(p, data_source, tr, te, r):
-    """
-    Linear-time version of the kernel Stein discrepancy test of Liu et al.,
-    2016 and Chwialkowski et al., 2016. Use full sample.
-    """
-    # full data
-    data = tr + te
-    X = data.data()
-    with util.ContextTimer() as t:
-        # median heuristic 
-        med = util.meddistance(X, subsample=1000)
-        k = kernel.KGauss(med**2)
-
-        lin_kstein = gof.LinearKernelSteinTest(p, k, alpha=alpha, seed=r)
-        lin_kstein_result = lin_kstein.perform_test(data)
-    return { 'test_result': lin_kstein_result, 'time_secs': t.secs}
+    return job_fssdq_opt(p, data_source, tr, te, r, J, null_sim=null_sim)
 
 
 # Define our custom Job, which inherits from base class IndependentJob
-class Ex2Job(IndependentJob):
+class Ex3Job(IndependentJob):
    
     def __init__(self, aggregator, p, data_source,
-            prob_label, rep, job_func, prob_param):
+            prob_label, rep, job_func, n_locs):
         #walltime = 60*59*24 
         walltime = 60*59
         memory = int(tr_proportion*sample_size*1e-2) + 50
@@ -186,7 +136,7 @@ class Ex2Job(IndependentJob):
         self.prob_label = prob_label
         self.rep = rep
         self.job_func = job_func
-        self.prob_param = prob_param
+        self.n_locs = n_locs
 
     # we need to define the abstract compute method. It has to return an instance
     # of JobResult base class
@@ -195,7 +145,7 @@ class Ex2Job(IndependentJob):
         p = self.p
         data_source = self.data_source 
         r = self.rep
-        prob_param = self.prob_param
+        n_locs = self.n_locs
         job_func = self.job_func
         # sample_size is a global variable
         data = data_source.sample(sample_size, seed=r)
@@ -203,40 +153,35 @@ class Ex2Job(IndependentJob):
             tr, te = data.split_tr_te(tr_proportion=tr_proportion, seed=r+21 )
             prob_label = self.prob_label
             logger.info("computing. %s. prob=%s, r=%d,\
-                    param=%.3g"%(job_func.__name__, prob_label, r, prob_param))
+                    J=%d"%(job_func.__name__, prob_label, r, n_locs))
 
 
-            job_result = job_func(p, data_source, tr, te, r)
+            job_result = job_func(p, data_source, tr, te, r, n_locs)
 
             # create ScalarResult instance
             result = SingleResult(job_result)
             # submit the result to my own aggregator
             self.aggregator.submit_result(result)
             func_name = job_func.__name__
-        logger.info("done. ex2: %s, prob=%s, r=%d, param=%.3g. Took: %.3g s "%(func_name,
-            prob_label, r, prob_param, t.secs))
+        logger.info("done. ex2: %s, prob=%s, r=%d, J=%d. Took: %.3g s "%(func_name,
+            prob_label, r, n_locs, t.secs))
 
         # save result
-        fname = '%s-%s-n%d_r%d_p%.3f_a%.3f_trp%.2f.p' \
-                %(prob_label, func_name, sample_size, r, prob_param, alpha,
+        fname = '%s-%s-n%d_r%d_J%d_a%.3f_trp%.2f.p' \
+                %(prob_label, func_name, sample_size, r, n_locs, alpha,
                         tr_proportion)
         glo.ex_save_result(ex, job_result, prob_label, fname)
 
 
-# This import is needed so that pickle knows about the class Ex2Job.
+# This import is needed so that pickle knows about the class Ex3Job.
 # pickle is used when collecting the results from the submitted jobs.
-from kgof.ex.ex2_prob_params import Ex2Job
-from kgof.ex.ex2_prob_params import job_fssdJ1q_med
-from kgof.ex.ex2_prob_params import job_fssdJ5q_med
-from kgof.ex.ex2_prob_params import job_fssdJ1q_opt
-from kgof.ex.ex2_prob_params import job_fssdJ5q_opt
-from kgof.ex.ex2_prob_params import job_fssdJ5p_opt
-from kgof.ex.ex2_prob_params import job_fssdJ10p_opt
-from kgof.ex.ex2_prob_params import job_kstein_med
-from kgof.ex.ex2_prob_params import job_lin_kstein_med
+from kgof.ex.ex3_vary_nlocs import Ex3Job
+from kgof.ex.ex3_vary_nlocs import job_fssdq_med
+from kgof.ex.ex3_vary_nlocs import job_fssdq_opt
+from kgof.ex.ex3_vary_nlocs import job_fssdp_opt
 
 #--- experimental setting -----
-ex = 2
+ex = 3
 
 # sample size = n (the training and test sizes are n/2)
 sample_size = 1000
@@ -245,113 +190,71 @@ sample_size = 1000
 alpha = 0.05
 tr_proportion = 0.5
 # repetitions for each parameter setting
-reps = 100
+reps = 50
 
-method_job_funcs = [ 
-        job_fssdJ1q_med, job_fssdJ5q_med, 
-        job_fssdJ1q_opt, 
-        job_fssdJ5q_opt,
-        #job_fssdJ5p_opt,
-        #job_fssdJ10p_opt,
-        job_kstein_med, 
-        job_lin_kstein_med,
-       ]
+# list of number of test locations/frequencies
+#Js = [5, 10, 15, 20, 25]
+#Js = range(2, 6+1)
+Js = [2**x for x in range(5)]
+
+method_job_funcs = [ job_fssdq_med, job_fssdq_opt, job_fssdp_opt, ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
-# setting of (pi, r) already exists.
+# setting already exists.
 is_rerun = False
 #---------------------------
 
-def gaussbern_rbm_probs(vars_perturb_B, dx=50, dh=10, n=sample_size):
+def gaussbern_rbm_tuple(var, dx=50, dh=10, n=sample_size):
     """
-    Get a sequence of Gaussian-Bernoulli RBM problems.
+    Get a tuple of Gaussian-Bernoulli RBM problems.
     We follow the parameter settings as described in section 6 of Liu et al.,
     2016.
 
-    - var_perturb_B: a list of Gaussian noise variances for perturbing B.
+    - var: Gaussian noise variance for perturbing B.
     - dx: observed dimension
     - dh: latent dimension
+
+    Return p, a DataSource
     """
-    probs = []
-    for i, var in enumerate(vars_perturb_B):
-        with util.NumpySeedContext(seed=i+1000):
-            B = np.random.randint(0, 2, (dx, dh))*2 - 1.0
-            b = np.random.randn(dx)
-            c = np.random.randn(dh)
-            p = density.GaussBernRBM(B, b, c)
+    with util.NumpySeedContext(seed=1000):
+        B = np.random.randint(0, 2, (dx, dh))*2 - 1.0
+        b = np.random.randn(dx)
+        c = np.random.randn(dh)
+        p = density.GaussBernRBM(B, b, c)
 
-            B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
-            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=50)
+        B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
+        gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=50)
 
-            probs.append((var, p, gb_rbm))
-    return probs
+    return p, gb_rbm
 
-def get_pqsource_list(prob_label):
+def get_pqsource(prob_label):
     """
-    Return [(prob_param, p, ds) for ... ], a list of tuples
-    where 
-    - prob_param: a problem parameters. Each parameter has to be a
-      scalar (so that we can plot them later). Parameters are preferably
-      positive integers.
+    Return (p, ds), a tuple of
     - p: a Density representing the distribution p
     - ds: a DataSource, each corresponding to one parameter setting.
         The DataSource generates sample from q.
     """
-    sg_ds = [1, 5, 10, 15]
-    gmd_ds = [5, 20, 40, 60]
-    # vary the mean
-    gmd_d10_ms = [0, 0.05, 0.1, 0.15]
-    gvinc_d1_vs = [1, 1.5, 2, 2.5] 
-    gvinc_d5_vs = [1, 1.5, 2, 2.5]
-    gvsub1_d1_vs = [0.1, 0.3, 0.5, 0.7]
-    gvd_ds = [1, 5, 10, 15]
-
-    gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
-    glaplace_ds = [1, 5, 10, 15]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
-            'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
-                data.DSIsotropicNormal(np.zeros(d), 1) ) for d in sg_ds],
+            'sg5': (density.IsotropicNormal(np.zeros(5), 1),
+                data.DSIsotropicNormal(np.zeros(5), 1) ),
 
             # vary d. P = N(0, I), Q = N( (1,..0), I)
-            'gmd': [(d, density.IsotropicNormal(np.zeros(d), 1),
-                data.DSIsotropicNormal(np.hstack((1, np.zeros(d-1))), 1) ) 
-                for d in gmd_ds
-                ],
-            # P = N(0, I), Q = N( (m, ..0), I). Vary m
-            'gmd_d10_ms': [(m, density.IsotropicNormal(np.zeros(10), 1),
-                data.DSIsotropicNormal(np.hstack((m, np.zeros(9))), 1) )
-                for m in gmd_d10_ms
-                ],
-            # d=1. Increase the variance. P = N(0, I). Q = N(0, v*I)
-            'gvinc_d1': [(var, density.IsotropicNormal(np.zeros(1), 1),
-                data.DSIsotropicNormal(np.zeros(1), var) ) 
-                for var in gvinc_d1_vs
-                ],
-            # d=5. Increase the variance. P = N(0, I). Q = N(0, v*I)
-            'gvinc_d5': [(var, density.IsotropicNormal(np.zeros(5), 1),
-                data.DSIsotropicNormal(np.zeros(5), var) ) 
-                for var in gvinc_d5_vs
-                ],
-            # d=1. P=N(0,1), Q(0,v). Consider the variance below 1.
-            'gvsub1_d1': [(var, density.IsotropicNormal(np.zeros(1), 1),
-                data.DSIsotropicNormal(np.zeros(1), var) ) 
-                for var in gvsub1_d1_vs
-                ],
+            'gmd5': (density.IsotropicNormal(np.zeros(5), 1),
+                data.DSIsotropicNormal(np.hstack((1, np.zeros(4))), 1) ),
+
             # Gaussian variance difference problem. Only the variance 
             # of the first dimenion differs. d varies.
-            'gvd': [(d, density.Normal(np.zeros(d), np.eye(d) ), 
-                data.DSNormal(np.zeros(d), np.diag(np.hstack((2, np.ones(d-1)))) ))
-                for d in gvd_ds],
+            'gvd5': (density.Normal(np.zeros(5), np.eye(5) ), 
+                data.DSNormal(np.zeros(5), np.diag(np.hstack((2, np.ones(4)))) )),
 
-            # Gaussian Bernoulli RBM. dx=50, dh=10 
-            'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_vars,
+            # Gaussian Bernoulli RBM. dx=50, dh=10. H0 is true
+            'gbrbm_dx50_dh10_v0': gaussbern_rbm_tuple(0,
                 dx=50, dh=10, n=sample_size),
 
-            # p: N(0, I), q: standard Laplace. Vary d
-            'glaplace': [(d, density.IsotropicNormal(np.zeros(d), 1), 
-                # Scaling of 1/sqrt(2) will make the variance 1.
-                data.DSLaplace(d=d, loc=0, scale=1.0/np.sqrt(2))) for d in glaplace_ds],
+            # Gaussian Bernoulli RBM. dx=50, dh=10. Perturb with noise = 1e-3.
+            'gbrbm_dx50_dh10_v1em3': gaussbern_rbm_tuple(1e-3,
+                dx=50, dh=10, n=sample_size),
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )
@@ -360,12 +263,7 @@ def get_pqsource_list(prob_label):
 
 def run_problem(prob_label):
     """Run the experiment"""
-    L = get_pqsource_list(prob_label)
-    prob_params, ps, data_sources = zip(*L)
-    # make them lists 
-    prob_params = list(prob_params)
-    ps = list(ps)
-    data_sources = list(data_sources)
+    p, ds = get_pqsource(prob_label)
 
     # ///////  submit jobs //////////
     # create folder name string
@@ -384,32 +282,31 @@ def run_problem(prob_label):
     #engine = SerialComputationEngine()
     engine = SlurmComputationEngine(batch_parameters)
     n_methods = len(method_job_funcs)
-    # repetitions x len(prob_params) x #methods
-    aggregators = np.empty((reps, len(prob_params), n_methods ), dtype=object)
+    # repetitions x len(Js) x #methods
+    aggregators = np.empty((reps, len(Js), n_methods ), dtype=object)
     for r in range(reps):
-        for pi, param in enumerate(prob_params):
+        for ji, J in enumerate(Js):
             for mi, f in enumerate(method_job_funcs):
                 # name used to save the result
                 func_name = f.__name__
-                fname = '%s-%s-n%d_r%d_p%.3f_a%.3f_trp%.2f.p' \
-                    %(prob_label, func_name, sample_size, r, param, alpha,
-                            tr_proportion)
+                fname = '%s-%s-n%d_r%d_J%d_a%.3f_trp%.2f.p' \
+                        %(prob_label, func_name, sample_size, r, J, alpha,
+                                tr_proportion)
                 if not is_rerun and glo.ex_file_exists(ex, prob_label, fname):
                     logger.info('%s exists. Load and return.'%fname)
                     job_result = glo.ex_load_result(ex, prob_label, fname)
 
                     sra = SingleResultAggregator()
                     sra.submit_result(SingleResult(job_result))
-                    aggregators[r, pi, mi] = sra
+                    aggregators[r, ji, mi] = sra
                 else:
                     # result not exists or rerun
 
                     # p: an UnnormalizedDensity object
-                    p = ps[pi]
-                    job = Ex2Job(SingleResultAggregator(), p, data_sources[pi],
-                            prob_label, r, f, param)
+                    job = Ex3Job(SingleResultAggregator(), p, ds, prob_label,
+                            r, f, J)
                     agg = engine.submit_job(job)
-                    aggregators[r, pi, mi] = agg
+                    aggregators[r, ji, mi] = agg
 
     # let the engine finish its business
     logger.info("Wait for all call in engine")
@@ -417,38 +314,37 @@ def run_problem(prob_label):
 
     # ////// collect the results ///////////
     logger.info("Collecting results")
-    job_results = np.empty((reps, len(prob_params), n_methods), dtype=object)
+    job_results = np.empty((reps, len(Js), n_methods), dtype=object)
     for r in range(reps):
-        for pi, param in enumerate(prob_params):
+        for ji, J in enumerate(prob_params):
             for mi, f in enumerate(method_job_funcs):
-                logger.info("Collecting result (%s, r=%d, param=%.3g)" %
-                        (f.__name__, r, param))
+                logger.info("Collecting result (%s, r=%d, J=%rd)" %
+                        (f.__name__, r, J))
                 # let the aggregator finalize things
-                aggregators[r, pi, mi].finalize()
+                aggregators[r, ji, mi].finalize()
 
                 # aggregators[i].get_final_result() returns a SingleResult instance,
                 # which we need to extract the actual result
-                job_result = aggregators[r, pi, mi].get_final_result().result
-                job_results[r, pi, mi] = job_result
+                job_result = aggregators[r, ji, mi].get_final_result().result
+                job_results[r, ji, mi] = job_result
 
     #func_names = [f.__name__ for f in method_job_funcs]
     #func2labels = exglobal.get_func2label_map()
     #method_labels = [func2labels[f] for f in func_names if f in func2labels]
 
     # save results 
-    results = {'job_results': job_results, 'prob_params': prob_params, 
+    results = {'job_results': job_results, 'data_source': ds, 
             'alpha': alpha, 'repeats': reps, 
-            'ps': ps,
-            'list_data_source': data_sources, 
+            'p': p,
             'tr_proportion': tr_proportion,
             'method_job_funcs': method_job_funcs, 'prob_label': prob_label,
             'sample_size': sample_size, 
             }
     
     # class name 
-    fname = 'ex%d-%s-me%d_n%d_rs%d_pmi%.3f_pma%.3f_a%.3f_trp%.2f.p' \
-        %(ex, prob_label, n_methods, sample_size, reps, min(prob_params),
-                max(prob_params), alpha, tr_proportion)
+    fname = 'ex%d-%s-me%d_n%d_rs%d_Jmi%.3f_Jma%.3f_a%.3f_trp%.2f.p' \
+        %(ex, prob_label, n_methods, sample_size, reps, min(Js),
+                max(Js), alpha, tr_proportion)
 
     glo.ex_save_result(ex, results, fname)
     logger.info('Saved aggregated results to %s'%fname)
