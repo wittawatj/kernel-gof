@@ -216,3 +216,29 @@ class NonHomPoissonLinear(UnnormalizedDensity):
 
 # end NonHomPoissonLinear
 
+class NonHomPoissonSine(UnnormalizedDensity):
+    """
+    Unnormalized density of inter-arrival times from nonhomogeneous poisson process with sine intensity function.
+    lambda = b*(1+sin(w*X))
+    """
+    def __init__(self, w=10.0,b=1.0):
+        """
+        w: the frequency of sine function
+        b: amplitude of intensity function
+        """
+        self.b = b
+        self.w = w
+    
+    def log_den(self, X):
+        b = self.b
+        w = self.w
+        unden = np.sum(b*(-X + (np.cos(w*X)-1)/w) + np.log(b*(1+np.sin(w*X))),1)
+        return unden
+
+    def dim(self):
+        return 1
+
+# end NonHomPoissonSine
+
+
+

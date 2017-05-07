@@ -299,7 +299,7 @@ class DSNonHomPoissonLinear(DataSource):
     def nonhom_linear(self,size):
         b = self.b
         u = np.random.rand(size)
-        if b = 0:
+        if b == 0:
             F_l = -np.log(1-u)
         else:
             F_l = np.sqrt(-2.0/b*np.log(1-u)+1.0/(b**2))-1.0/b
@@ -315,4 +315,81 @@ class DSNonHomPoissonLinear(DataSource):
 
 # end class DSNonHomPoissonLinear
 
+class DSNonHomPoissonSine(DataSource):
+    """
+    A DataSource implementing non homogenous poisson process with sine intensity.
+    lambda = b*(1+sin(w*X))
+    """
+    def __init__(self, w, b, delta=0.001):
+        """
+        w: the frequency of sine function
+        b: amplitude of intensity function
+        """
+        self.b = b
+        self.w = w
+        self.delta = delta
+        
+    def func(self,t):
+        val = (t + (1-np.cos(self.w*t))/self.w )*self.b
+        return val
+    
+    # slow step-by-step increment by assigned delta
+    def find_time(self, x):
+        t = 0.0
+        while self.func(t) < x:
+            t += self.delta
+        return t
+
+    # bisection search to find t value with accuracy delta
+    def search_time(self, x):
+        b = self.b
+        w = self.w
+        delta = self.delta
+        t_old = 0.0
+        t_new = b
+        val_old = self.func(t_old)
+        val_new = self.func(t_new)
+        while np.abs(val_new-x) > delta:
+            if val_new < x and t_old < t_new:
+                t_old = t_new
+                t_new = t_new * 2.0
+                val_old = val_new
+                val_new = self.func(t_new)
+            elif val_new < x and t_old > t_new:
+                temp = (t_old + t_new) / 2.0
+                t_old = t_new
+                t_new = temp
+                val_old = val_new
+                val_new = self.func(t_new)
+            elif val_new > x and t_old > t_new:
+                t_old = t_new
+                t_new = t_new / 2.0
+                val_old = val_new
+                val_new = self.func(t_new)
+            elif val_new > x and t_old < t_new:
+                temp = (t_old + t_new) / 2.0
+                t_old = t_new
+                t_new = temp
+                val_old = val_new
+                val_new = self.func(t_new)
+        t = t_new
+        return t
+        
+    def nonhom_sine(self,size=1000):
+        u = np.random.rand(size)
+        x = -np.log(1-u)
+        t = np.zeros(size)
+        for i in range(size):
+            t[i] = self.search_time(x[i])
+        return t
+
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = self.nonhom_sine(size=n)
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSNonHomPoissonSine
 
