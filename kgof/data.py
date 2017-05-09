@@ -471,3 +471,76 @@ class DSLogPoissonLinear(DataSource):
             return Data(X)
 
 # end class DSLogPoissonLinear
+
+class DSPoisson2D(DataSource):
+    """
+     A DataSource implementing non homogenous poisson process.
+    """
+    def __init__(self):
+        """
+        lambda_(X,Y) = X^2 + Y^2
+        lamb_bar: upper-bound used in rejection sampling
+        """
+
+    def quadratic_intensity(self, X):
+        intensity = self.lamb_bar*np.sum(X**2,1)
+        return intensity
+
+
+    def inh2d(self, lamb_bar = 100000):
+        self.lamb_bar = lamb_bar
+        N = np.random.poisson(2*self.lamb_bar)
+        X = np.random.rand(N,2)
+        intensity = self.quadratic_intensity(X)
+        u = np.random.rand(N)
+        lamb_T = intensity/lamb_bar
+        X_acc = X[u < lamb_T]
+        return X_acc
+
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = self.inh2d(lamb_bar=n)
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSPoisson2D
+
+class DSSigmoidPoisson2D(DataSource):
+    """
+     A DataSource implementing non homogenous poisson process.
+    """
+    def __init__(self, a=1.0):
+        """
+        lambda_(X,Y) = a*X^2 + Y^2
+        X = 1/(1+exp(s))
+        Y = 1/(1+exp(t))
+        X, Y \in [0,1], s,t \in R
+        """
+        self.a = a
+
+    def quadratic_intensity(self, X):
+        intensity = self.lamb_bar*np.average(X**2, axis=1, weights=[self.a,1])
+        return intensity
+
+
+    def inh2d(self, lamb_bar = 100000):
+        self.lamb_bar = lamb_bar
+        N = np.random.poisson(2*self.lamb_bar)
+        X = np.random.rand(N,2)
+        intensity = self.quadratic_intensity(X)
+        u = np.random.rand(N)
+        lamb_T = intensity/lamb_bar
+        X_acc = X[u < lamb_T]
+        return X_acc
+
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = np.log(1/self.inh2d(lamb_bar=n)-1)
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSSigmoidPoisson2D
