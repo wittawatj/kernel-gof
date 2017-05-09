@@ -528,6 +528,8 @@ class GaussFSSD(FSSD):
         - locs_bounds_frac: When making box bounds for the test_locs, extend
             the box defined by coordinate-wise min-max by std of each coordinate
             multiplied by this number.
+        - gwidth_lb: absolute lower bound on the Gaussian width^2
+        - gwidth_ub: absolute upper bound on the Gaussian width^2
 
         #- If the lb, ub bounds are None, use fraction of the median heuristics 
         #    to automatically set the bounds.
@@ -589,7 +591,7 @@ class GaussFSSD(FSSD):
               tol=tol_fun, 
               options={
                   'maxiter': max_iter, 'ftol': tol_fun, 'disp': disp,
-                  'gtol': 1.0e-04,
+                  'gtol': 1.0e-05,
                   },
               jac=grad_obj,
             )

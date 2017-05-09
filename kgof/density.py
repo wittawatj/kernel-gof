@@ -262,11 +262,11 @@ class Gamma(UnnormalizedDensity):
     def get_datasource(self):
         return data.DSNormal(self.mean, self.cov)
 
+
     def dim(self):
         return 1
 
 
-# end Normal
 
 
 class LogGamma(UnnormalizedDensity):
@@ -296,7 +296,6 @@ class LogGamma(UnnormalizedDensity):
         return 1
 
 
-# end Normal
 
 
 class LogPoissonLinear(UnnormalizedDensity):
@@ -318,4 +317,3 @@ class LogPoissonLinear(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end NonHomPoissonLinear

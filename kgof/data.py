@@ -438,7 +438,7 @@ class DSLogGamma(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSGamma
+# end class DSLogGamma
 
 class DSLogPoissonLinear(DataSource):
     """
@@ -470,4 +470,4 @@ class DSLogPoissonLinear(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSNonHomPoissonLinear
+# end class DSLogPoissonLinear

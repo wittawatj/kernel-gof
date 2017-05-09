@@ -245,7 +245,7 @@ sample_size = 1000
 alpha = 0.05
 tr_proportion = 0.5
 # repetitions for each parameter setting
-reps = 100
+reps = 200
 
 method_job_funcs = [ 
         job_fssdJ1q_med, job_fssdJ5q_med, 

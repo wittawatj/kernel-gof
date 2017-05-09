@@ -92,12 +92,13 @@ def job_fssdq_opt(p, data_source, tr, te, r, J, null_sim=None):
         logging.info('After grid search, gwidth=%.3g'%gwidth)
         
         ops = {
-            'reg': 5e-2,
+            'reg': 1e-2,
             'max_iter': 50,
             'tol_fun': 1e-4,
             'disp': True,
-            'locs_bounds_frac':100.0,
-            'gwidth_lb': 1e-2,
+            'locs_bounds_frac': 5.0,
+            'gwidth_lb': 1e-1,
+            'gwidth_ub': 1e3,
             }
 
         V_opt, gwidth_opt, info = gof.GaussFSSD.optimize_locs_widths(p, tr,
@@ -184,21 +185,23 @@ from kgof.ex.ex3_vary_nlocs import job_fssdp_opt
 ex = 3
 
 # sample size = n (the training and test sizes are n/2)
-sample_size = 1000
+sample_size = 500
 
 # number of test locations / test frequencies J
 alpha = 0.05
 tr_proportion = 0.5
 # repetitions for each parameter setting
-reps = 50
+reps = 100
 
 # list of number of test locations/frequencies
 #Js = [5, 10, 15, 20, 25]
 #Js = range(2, 6+1)
 #Js = [2**x for x in range(5)]
-Js = [2, 8, 32, 64, 128]
+Js = [2, 8, 32, 64, 96, 192, 256]
 
-method_job_funcs = [ job_fssdq_med, job_fssdq_opt, job_fssdp_opt, ]
+method_job_funcs = [ job_fssdq_med, job_fssdq_opt, 
+        #job_fssdp_opt, 
+        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
 # setting already exists.
@@ -253,9 +256,17 @@ def get_pqsource(prob_label):
             'gbrbm_dx50_dh10_v0': gaussbern_rbm_tuple(0,
                 dx=50, dh=10, n=sample_size),
 
-            # Gaussian Bernoulli RBM. dx=50, dh=10. Perturb with noise = 1e-3.
+            # Gaussian Bernoulli RBM. dx=5, dh=3. H0 is true
+            'gbrbm_dx5_dh3_v0': gaussbern_rbm_tuple(0,
+                dx=5, dh=3, n=sample_size),
+
+            # Gaussian Bernoulli RBM. dx=50, dh=10. 
             'gbrbm_dx50_dh10_v1em3': gaussbern_rbm_tuple(1e-3,
                 dx=50, dh=10, n=sample_size),
+
+            # Gaussian Bernoulli RBM. dx=5, dh=3. Perturb with noise = 1e-2.
+            'gbrbm_dx5_dh3_v1em3': gaussbern_rbm_tuple(1e-3,
+                dx=5, dh=3, n=sample_size),
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )
