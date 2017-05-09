@@ -240,4 +240,30 @@ class NonHomPoissonSine(UnnormalizedDensity):
 # end NonHomPoissonSine
 
 
+class Gamma(UnnormalizedDensity):
+    """
+    A gamma distribution.
+    """
+    def __init__(self, alpha, beta = 1.0):
+        """
+        alpha: shape of parameter
+        beta: scale
+        """
+        self.alpha = alpha 
+        self.beta = beta
+        
+    def log_den(self, X):
+        alpha = self.alpha
+        beta = self.beta
+        #unden = np.sum(stats.gamma.logpdf(X, alpha, scale = beta), 1)
+        unden = np.sum(-beta*X + (alpha-1)*np.log(X), 1)
+        return unden
 
+    def get_datasource(self):
+        return data.DSNormal(self.mean, self.cov)
+
+    def dim(self):
+        return 1
+
+
+# end Normal

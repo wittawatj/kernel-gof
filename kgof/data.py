@@ -394,3 +394,25 @@ class DSNonHomPoissonSine(DataSource):
 
 # end class DSNonHomPoissonSine
 
+
+class DSGamma(DataSource):
+    """
+    A DataSource implementing gamma distribution.
+    """
+    def __init__(self, alpha, beta=1.0):
+        """
+        alpha: shape of parameter
+        beta: scale
+        """
+        self.alpha = alpha
+        self.beta = beta
+
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = stats.gamma.rvs(self.alpha, size=n, scale = self.beta)
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSNonHomPoissonLinear
