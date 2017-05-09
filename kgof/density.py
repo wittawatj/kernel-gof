@@ -267,3 +267,55 @@ class Gamma(UnnormalizedDensity):
 
 
 # end Normal
+
+
+class LogGamma(UnnormalizedDensity):
+    """
+    A gamma distribution with transformed domain.
+    t = exp(x),  t \in R+  x \in R
+    """
+    def __init__(self, alpha, beta = 1.0):
+        """
+        alpha: shape of parameter
+        beta: scale
+        """
+        self.alpha = alpha
+        self.beta = beta
+        
+    def log_den(self, X):
+        alpha = self.alpha
+        beta = self.beta
+        #unden = np.sum(stats.gamma.logpdf(X, alpha, scale = beta), 1)
+        unden = np.sum(-beta*np.exp(X) + (alpha-1)*X + X , 1)
+        return unden
+
+    def get_datasource(self):
+        return data.DSNormal(self.mean, self.cov)
+
+    def dim(self):
+        return 1
+
+
+# end Normal
+
+
+class LogPoissonLinear(UnnormalizedDensity):
+    """
+    Unnormalized density of inter-arrival times from nonhomogeneous poisson process with linear intensity function.
+    lambda = 1 + bt
+    """
+    def __init__(self, b):
+        """
+        b: slope of the linear function 
+        """
+        self.b = b 
+    
+    def log_den(self, X):
+        b = self.b
+        unden = -np.sum(0.5*b*np.exp(X)**2 + np.exp(X) - np.log(1.0+b*np.exp(X))-X, 1)
+        return unden
+
+    def dim(self):
+        return 1
+
+# end NonHomPoissonLinear

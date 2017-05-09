@@ -409,7 +409,62 @@ class DSGamma(DataSource):
 
     def sample(self, n, seed=3):
         with util.NumpySeedContext(seed=seed):
-            X = stats.gamma.rvs(self.alpha, size=n, scale = self.beta)
+            X = stats.gamma.rvs(self.alpha, size=n, scale = 1.0/self.beta)
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSGamma
+
+
+class DSLogGamma(DataSource):
+    """
+    A DataSource implementing the transformed gamma distribution.
+    """
+    def __init__(self, alpha, beta=1.0):
+        """
+        alpha: shape of parameter
+        beta: scale
+        """
+        self.alpha = alpha
+        self.beta = beta
+
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = np.log(stats.gamma.rvs(self.alpha, size=n, scale = 1.0/self.beta))
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSGamma
+
+class DSLogPoissonLinear(DataSource):
+    """
+    A DataSource implementing non homogenous poisson process.
+    """
+    def __init__(self, b):
+        """
+        b: slope in of the linear function
+        lambda_X = 1 + bX
+        """
+        if b < 0:
+            raise ValueError('Parameter b must be non-negative.')
+        self.b = b
+    
+    def nonhom_linear(self,size):
+        b = self.b
+        u = np.random.rand(size)
+        if np.abs(b) <= 1e-8:
+            F_l = -np.log(1-u)
+        else:
+            F_l = np.sqrt(-2.0/b*np.log(1-u)+1.0/(b**2))-1.0/b
+        return F_l
+        
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = np.log(self.nonhom_linear(size=n))
             if len(X.shape) ==1:
                 # This can happen if d=1
                 X = X[:, np.newaxis]
