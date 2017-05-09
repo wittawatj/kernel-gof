@@ -319,3 +319,58 @@ class LogPoissonLinear(UnnormalizedDensity):
         return 1
 
 # end NonHomPoissonLinear
+
+class Poisson2D(UnnormalizedDensity):
+    """
+     A DataSource implementing non homogenous poisson process.
+    """
+    def __init__(self):
+        """
+        lambda_(X,Y) = X^2 + Y^2
+        """
+
+
+    def quadratic_intensity(self,X,Y):
+        int_intensity = -(X**2+Y**2)*X*Y + 3*np.log(X**2+Y**2)
+        return int_intensity
+
+    def log_den(self, X):
+        unden = self.quadratic_intensity(X[:,0],X[:,1])
+        return unden
+
+    def dim(self):
+        return 1
+
+# end class Poisson2D
+
+
+class SigmoidPoisson2D(UnnormalizedDensity):
+    """
+     A DataSource implementing non homogenous poisson process.
+    """
+    def __init__(self, a=1.0):
+        """
+        lambda_(X,Y) = a* X^2 + Y^2
+        X = 1/(1+exp(s))
+        Y = 1/(1+exp(t))
+        X, Y \in [0,1], s,t \in R
+        """
+        self.a = a
+    def sigmoid(self,x):
+        sig = 1/(1+np.exp(x))
+        return sig
+
+    def quadratic_intensity(self,s,t):
+        X = self.sigmoid(s)
+        Y = self.sigmoid(t)
+        int_intensity = -(self.a*X**2+Y**2)*X*Y + 3*(np.log(self.a*X**2+Y**2)+np.log((X*(X-1)*Y*(Y-1))))
+        return int_intensity
+
+    def log_den(self, S):
+        unden = self.quadratic_intensity(S[:,0],S[:,1])
+        return unden
+
+    def dim(self):
+        return 1
+
+# end class SigmoidPoisson2D
