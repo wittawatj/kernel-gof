@@ -96,7 +96,7 @@ def job_fssdq_opt(p, data_source, tr, te, r, J, null_sim=None):
             'max_iter': 50,
             'tol_fun': 1e-4,
             'disp': True,
-            'locs_bounds_frac': 10.0,
+            'locs_bounds_frac': 5.0,
             'gwidth_lb': 1e-1,
             'gwidth_ub': 1e3,
             }
@@ -156,6 +156,7 @@ class Ex3Job(IndependentJob):
             logger.info("computing. %s. prob=%s, r=%d,\
                     J=%d"%(job_func.__name__, prob_label, r, n_locs))
 
+
             job_result = job_func(p, data_source, tr, te, r, n_locs)
 
             # create ScalarResult instance
@@ -190,14 +191,13 @@ sample_size = 500
 alpha = 0.05
 tr_proportion = 0.5
 # repetitions for each parameter setting
-reps = 50
+reps = 100
 
 # list of number of test locations/frequencies
 #Js = [5, 10, 15, 20, 25]
 #Js = range(2, 6+1)
 #Js = [2**x for x in range(5)]
-Js = [2, 8, 32, 96, 384]
-#Js = [2, 8, 32]
+Js = [2, 8, 32, 64, 96, 192, 256]
 
 method_job_funcs = [ job_fssdq_med, job_fssdq_opt, 
         #job_fssdp_opt, 
@@ -243,24 +243,14 @@ def get_pqsource(prob_label):
             'sg5': (density.IsotropicNormal(np.zeros(5), 1),
                 data.DSIsotropicNormal(np.zeros(5), 1) ),
 
-            # P = N(0, I), Q = N( (0.2,..0), I)
+            # vary d. P = N(0, I), Q = N( (1,..0), I)
             'gmd5': (density.IsotropicNormal(np.zeros(5), 1),
-                data.DSIsotropicNormal(np.hstack((0.2, np.zeros(4))), 1) ),
-
-            'gmd1': (density.IsotropicNormal(np.zeros(1), 1),
-                data.DSIsotropicNormal(np.ones(1)*0.2, 1) ),
-
-            # P = N(0, I), Q = N( (1,..0), I)
-            'gmd100': (density.IsotropicNormal(np.zeros(100), 1),
-                data.DSIsotropicNormal(np.hstack((1, np.zeros(99))), 1) ),
+                data.DSIsotropicNormal(np.hstack((1, np.zeros(4))), 1) ),
 
             # Gaussian variance difference problem. Only the variance 
             # of the first dimenion differs. d varies.
             'gvd5': (density.Normal(np.zeros(5), np.eye(5) ), 
                 data.DSNormal(np.zeros(5), np.diag(np.hstack((2, np.ones(4)))) )),
-
-            'gvd10': (density.Normal(np.zeros(10), np.eye(10) ), 
-                data.DSNormal(np.zeros(10), np.diag(np.hstack((2, np.ones(9)))) )),
 
             # Gaussian Bernoulli RBM. dx=50, dh=10. H0 is true
             'gbrbm_dx50_dh10_v0': gaussbern_rbm_tuple(0,
@@ -275,25 +265,8 @@ def get_pqsource(prob_label):
                 dx=50, dh=10, n=sample_size),
 
             # Gaussian Bernoulli RBM. dx=5, dh=3. Perturb with noise = 1e-2.
-            'gbrbm_dx5_dh3_v5em3': gaussbern_rbm_tuple(5e-3,
+            'gbrbm_dx5_dh3_v1em3': gaussbern_rbm_tuple(1e-3,
                 dx=5, dh=3, n=sample_size),
-
-            # Gaussian mixture of two components. Uniform mixture weights.
-            # p = 0.5*N(0, 1) + 0.5*N(3, 0.01)
-            # q = 0.5*N(-3, 0.01) + 0.5*N(0, 1)
-            'gmm_d1': (
-                density.IsoGaussianMixture(np.array([[0], [3.0]]), np.array([1, 0.01]) ),
-                data.DSIsoGaussianMixture(np.array([[-3.0], [0]]), np.array([0.01, 1]) )
-                ),
-
-            # p = N(0, 1) 
-            # q = 0.1*N([-10, 0,..0], 0.001) + 0.9*N([0,0,..0], 1)
-            'g_vs_gmm_d5': (
-                    density.IsotropicNormal(np.zeros(5), 1), 
-                    data.DSIsoGaussianMixture( 
-                        np.vstack(( np.hstack((0.0, np.zeros(4))), np.zeros(5) )),
-                        np.array([0.0001, 1]), pmix=[0.1, 0.9] )
-                    ),
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )
