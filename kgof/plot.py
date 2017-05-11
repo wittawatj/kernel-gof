@@ -12,12 +12,12 @@ def get_func_tuples():
         (func_name used in the experiments, label name, plot line style)
     """
     func_tuples = [
-            ('job_fssdJ1q_med', 'FSSDq-med J1', 'b--s'),
+            ('job_fssdJ1q_med', 'FSSDq-med J1', 'r--s'),
             ('job_fssdJ5q_med', 'FSSDq-med J5', 'r--s'),
             ('job_fssdq_med', 'FSSDq-med', 'r--s'),
 
-            ('job_fssdJ1q_opt', 'FSSDq-opt J1', 'b-s'),
-            ('job_fssdq_opt', 'FSSDq-opt', 'b-s'),
+            ('job_fssdJ1q_opt', 'FSSDq-opt J1', 'r-s'),
+            ('job_fssdq_opt', 'FSSDq-opt', 'r-s'),
             ('job_fssdJ5q_opt', 'FSSDq-opt J5', 'r-s'),
             ('job_fssdJ5p_opt', 'FSSDp-opt J5', 'm-s'),
             ('job_fssdp_opt', 'FSSDp-opt', 'm-s'),

@@ -184,7 +184,7 @@ from kgof.ex.ex3_vary_nlocs import job_fssdp_opt
 ex = 3
 
 # sample size = n (the training and test sizes are n/2)
-sample_size = 500
+sample_size = 800
 
 # number of test locations / test frequencies J
 alpha = 0.05
@@ -196,7 +196,7 @@ reps = 50
 #Js = [5, 10, 15, 20, 25]
 #Js = range(2, 6+1)
 #Js = [2**x for x in range(5)]
-Js = [2, 8, 32, 96, 384]
+Js = [2, 8, 32, 96, 384, 512]
 #Js = [2, 8, 32]
 
 method_job_funcs = [ job_fssdq_med, job_fssdq_opt, 
@@ -293,6 +293,18 @@ def get_pqsource(prob_label):
                     data.DSIsoGaussianMixture( 
                         np.vstack(( np.hstack((0.0, np.zeros(4))), np.zeros(5) )),
                         np.array([0.0001, 1]), pmix=[0.1, 0.9] )
+                    ),
+
+            'g_vs_gmm_d2': (
+                    density.IsotropicNormal(np.zeros(2), 1), 
+                    data.DSIsoGaussianMixture( 
+                        np.vstack(( np.hstack((0.0, np.zeros(1))), np.zeros(2) )),
+                        np.array([0.01, 1]), pmix=[0.1, 0.9] )
+                    ),
+            'g_vs_gmm_d1': (
+                    density.IsotropicNormal(np.zeros(1), 1), 
+                    data.DSIsoGaussianMixture(np.array([[0.0], [0]]),
+                        np.array([0.01, 1]), pmix=[0.1, 0.9] )
                     ),
             }
     if prob_label not in prob2tuples:

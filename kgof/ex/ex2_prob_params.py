@@ -98,11 +98,12 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
         
         ops = {
             'reg': 1e-2,
-            'max_iter': 50,
+            'max_iter': 30,
             'tol_fun': 1e-4,
             'disp': True,
-            'locs_bounds_frac':100.0,
-            'gwidth_lb': 1e-2,
+            'locs_bounds_frac':10.0,
+            'gwidth_lb': 1e-1,
+            'gwidth_ub': 1e3,
             }
 
         V_opt, gwidth_opt, info = gof.GaussFSSD.optimize_locs_widths(p, tr,
@@ -243,13 +244,14 @@ sample_size = 1000
 
 # number of test locations / test frequencies J
 alpha = 0.05
-tr_proportion = 0.5
+tr_proportion = 0.8
 # repetitions for each parameter setting
-reps = 200
+reps = 50
 
 method_job_funcs = [ 
-        job_fssdJ1q_med, job_fssdJ5q_med, 
-        job_fssdJ1q_opt, 
+        #job_fssdJ1q_med, 
+        job_fssdJ5q_med, 
+        #job_fssdJ1q_opt, 
         job_fssdJ5q_opt,
         #job_fssdJ5p_opt,
         #job_fssdJ10p_opt,
@@ -300,7 +302,7 @@ def get_pqsource_list(prob_label):
     sg_ds = [1, 5, 10, 15]
     gmd_ds = [5, 20, 40, 60]
     # vary the mean
-    gmd_d10_ms = [0, 0.05, 0.1, 0.15]
+    gmd_d10_ms = [0, 0.02, 0.04, 0.06]
     gvinc_d1_vs = [1, 1.5, 2, 2.5] 
     gvinc_d5_vs = [1, 1.5, 2, 2.5]
     gvsub1_d1_vs = [0.1, 0.3, 0.5, 0.7]
@@ -313,7 +315,7 @@ def get_pqsource_list(prob_label):
             'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
                 data.DSIsotropicNormal(np.zeros(d), 1) ) for d in sg_ds],
 
-            # vary d. P = N(0, I), Q = N( (1,..0), I)
+            # vary d. P = N(0, I), Q = N( (c,..0), I)
             'gmd': [(d, density.IsotropicNormal(np.zeros(d), 1),
                 data.DSIsotropicNormal(np.hstack((1, np.zeros(d-1))), 1) ) 
                 for d in gmd_ds
