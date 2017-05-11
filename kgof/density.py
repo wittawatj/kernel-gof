@@ -393,7 +393,7 @@ class ISILogPoissonLinear(UnnormalizedDensity):
 
 class ISIPoisson2D(UnnormalizedDensity):
     """
-     A DataSource implementing non homogenous poisson process.
+    Unnormalized density of nonhomogeneous spatial poisson process
     """
     def __init__(self):
         """
@@ -416,7 +416,7 @@ class ISIPoisson2D(UnnormalizedDensity):
 
 class ISISigmoidPoisson2D(UnnormalizedDensity):
     """
-     A DataSource implementing non homogenous poisson process.
+    Unnormalized density of nonhomogeneous spatial poisson process with sigmoid transformation
     """
     def __init__(self, intensity = 'quadratic', w = 1.0, a=1.0):
         """
@@ -446,6 +446,22 @@ class ISISigmoidPoisson2D(UnnormalizedDensity):
 
     def log_den(self, S):
         unden = self.quadratic_intensity(S[:,0],S[:,1])
+        return unden
+
+    def dim(self):
+        return 1
+
+# end class SigmoidPoisson2D
+
+class RealData(UnnormalizedDensity):
+    """
+    Unnormalized Density of real dataset with estimated intensity function
+    """
+    def __init__(self, fit):
+        self.fit = fit
+
+    def log_den(self, X):
+        unden = np.log(self.fit(X))
         return unden
 
     def dim(self):
