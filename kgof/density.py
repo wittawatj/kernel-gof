@@ -194,7 +194,7 @@ class GaussBernRBM(UnnormalizedDensity):
 
 # end GaussBernRBM
 
-class NonHomPoissonLinear(UnnormalizedDensity):
+class ISIPoissonLinear(UnnormalizedDensity):
     """
     Unnormalized density of inter-arrival times from nonhomogeneous poisson process with linear intensity function.
     lambda = 1 + bt
@@ -213,9 +213,9 @@ class NonHomPoissonLinear(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end NonHomPoissonLinear
+# end ISIPoissonLinear
 
-class NonHomPoissonSine(UnnormalizedDensity):
+class ISIPoissonSine(UnnormalizedDensity):
     """
     Unnormalized density of inter-arrival times from nonhomogeneous poisson process with sine intensity function.
     lambda = b*(1+sin(w*X))
@@ -237,7 +237,7 @@ class NonHomPoissonSine(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end NonHomPoissonSine
+# end ISIPoissonSine
 
 
 class Gamma(UnnormalizedDensity):
@@ -296,10 +296,10 @@ class LogGamma(UnnormalizedDensity):
         return 1
 
 
-# end Normal
+# end LogGamma
 
 
-class LogPoissonLinear(UnnormalizedDensity):
+class ISILogPoissonLinear(UnnormalizedDensity):
     """
     Unnormalized density of inter-arrival times from nonhomogeneous poisson process with linear intensity function.
     lambda = 1 + bt
@@ -318,9 +318,9 @@ class LogPoissonLinear(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end NonHomPoissonLinear
+# end ISIPoissonLinear
 
-class Poisson2D(UnnormalizedDensity):
+class ISIPoisson2D(UnnormalizedDensity):
     """
      A DataSource implementing non homogenous poisson process.
     """
@@ -328,7 +328,6 @@ class Poisson2D(UnnormalizedDensity):
         """
         lambda_(X,Y) = X^2 + Y^2
         """
-
 
     def quadratic_intensity(self,X,Y):
         int_intensity = -(X**2+Y**2)*X*Y + 3*np.log(X**2+Y**2)
@@ -341,14 +340,14 @@ class Poisson2D(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end class Poisson2D
+# end class ISIPoisson2D
 
 
-class SigmoidPoisson2D(UnnormalizedDensity):
+class ISISigmoidPoisson2D(UnnormalizedDensity):
     """
      A DataSource implementing non homogenous poisson process.
     """
-    def __init__(self, a=1.0):
+    def __init__(self, intensity = 'quadratic', w = 1.0, a=1.0):
         """
         lambda_(X,Y) = a* X^2 + Y^2
         X = 1/(1+exp(s))
@@ -356,6 +355,14 @@ class SigmoidPoisson2D(UnnormalizedDensity):
         X, Y \in [0,1], s,t \in R
         """
         self.a = a
+        self.w = w
+        if intensity == 'quadratic':
+            self.intensity = self.quadratic_intensity
+        elif intensity == 'sine':
+            self.intensity = self.sine_intensity
+        else:
+            raise ValueError('Not intensity function found')
+
     def sigmoid(self,x):
         sig = 1/(1+np.exp(x))
         return sig
@@ -373,4 +380,4 @@ class SigmoidPoisson2D(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end class SigmoidPoisson2D
+# end class ISISigmoidPoisson2D

@@ -284,7 +284,7 @@ class DSGaussBernRBM(DataSource):
             return Data(X)
 # end class DSGaussBernRBM
 
-class DSNonHomPoissonLinear(DataSource):
+class DSISIPoissonLinear(DataSource):
     """
     A DataSource implementing non homogenous poisson process.
     """
@@ -314,9 +314,9 @@ class DSNonHomPoissonLinear(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSNonHomPoissonLinear
+# end class DSISIPoissonLinear
 
-class DSNonHomPoissonSine(DataSource):
+class DSISIPoissonSine(DataSource):
     """
     A DataSource implementing non homogenous poisson process with sine intensity.
     lambda = b*(1+sin(w*X))
@@ -392,7 +392,7 @@ class DSNonHomPoissonSine(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSNonHomPoissonSine
+# end class DSISIPoissonSine
 
 
 class DSGamma(DataSource):
@@ -440,7 +440,7 @@ class DSLogGamma(DataSource):
 
 # end class DSGamma
 
-class DSLogPoissonLinear(DataSource):
+class DSISILogPoissonLinear(DataSource):
     """
     A DataSource implementing non homogenous poisson process.
     """
@@ -470,28 +470,45 @@ class DSLogPoissonLinear(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSLogPoissonLinear
+# end class DSISILogPoissonLinear
 
-class DSPoisson2D(DataSource):
+class DSISIPoisson2D(DataSource):
     """
      A DataSource implementing non homogenous poisson process.
     """
-    def __init__(self):
+    def __init__(self, intensity = 'quadratic', w=1.0):
         """
         lambda_(X,Y) = X^2 + Y^2
         lamb_bar: upper-bound used in rejection sampling
         """
+        self.w = w
+        if intensity == 'quadratic':
+            self.intensity = self.quadratic_intensity
+        elif intensity == 'sine':
+            self.intensity = self.sine_intensity
+        elif intensity == 'xsine':
+            self.intensity = self.cross_sine_intensity
+        else:
+            raise ValueError('Not intensity function found')
+
 
     def quadratic_intensity(self, X):
         intensity = self.lamb_bar*np.sum(X**2,1)
         return intensity
 
+    def sine_intensity(self, X):
+        intensity = self.lamb_bar*np.sum(np.sin(self.w*X*np.pi),1)
+        return intensity
+
+    def cross_sine_intensity(self, X):
+        intensity = self.lamb_bar*np.prod(np.sin(self.w*X*np.pi),1)
+        return intensity
 
     def inh2d(self, lamb_bar = 100000):
         self.lamb_bar = lamb_bar
         N = np.random.poisson(2*self.lamb_bar)
         X = np.random.rand(N,2)
-        intensity = self.quadratic_intensity(X)
+        intensity = self.intensity(X)
         u = np.random.rand(N)
         lamb_T = intensity/lamb_bar
         X_acc = X[u < lamb_T]
@@ -505,13 +522,13 @@ class DSPoisson2D(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSPoisson2D
+# end class DSISIPoisson2D
 
-class DSSigmoidPoisson2D(DataSource):
+class DSISISigmoidPoisson2D(DataSource):
     """
      A DataSource implementing non homogenous poisson process.
     """
-    def __init__(self, a=1.0):
+    def __init__(self, intensity = 'quadratic', w=1.0, a=1.0):
         """
         lambda_(X,Y) = a*X^2 + Y^2
         X = 1/(1+exp(s))
@@ -519,9 +536,26 @@ class DSSigmoidPoisson2D(DataSource):
         X, Y \in [0,1], s,t \in R
         """
         self.a = a
+        self.w = w
+        if intensity == 'quadratic':
+            self.intensity = self.quadratic_intensity
+        elif intensity == 'sine':
+            self.intensity = self.sine_intensity
+        elif intensity == 'xsine':
+            self.intensity = self.cross_sine_intensity
+        else:
+            raise ValueError('Not intensity function found')
 
     def quadratic_intensity(self, X):
         intensity = self.lamb_bar*np.average(X**2, axis=1, weights=[self.a,1])
+        return intensity
+
+    def cross_sine_intensity(self, X):
+        intensity = self.lamb_bar*np.prod(np.sin(self.w*X*np.pi),1)
+        return intensity
+
+    def sine_intensity(self, X):
+        intensity = self.lamb_bar*np.sum(np.sin(self.w*X*np.pi),1)
         return intensity
 
 
@@ -529,7 +563,7 @@ class DSSigmoidPoisson2D(DataSource):
         self.lamb_bar = lamb_bar
         N = np.random.poisson(2*self.lamb_bar)
         X = np.random.rand(N,2)
-        intensity = self.quadratic_intensity(X)
+        intensity = self.intensity(X)
         u = np.random.rand(N)
         lamb_T = intensity/lamb_bar
         X_acc = X[u < lamb_T]
@@ -543,4 +577,70 @@ class DSSigmoidPoisson2D(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSSigmoidPoisson2D
+# end class DSISISigmoidPoisson2D
+
+class DSPoisson2D(DataSource):
+    """
+     A DataSource implementing non homogenous poisson process.
+    """
+    def __init__(self, intensity = 'quadratic', w=1.0, a=1.0):
+        """
+        lambda_(X,Y) = a*X^2 + Y^2
+        X = 1/(1+exp(s))
+        Y = 1/(1+exp(t))
+        X, Y \in [0,1], s,t \in R
+        """
+        self.a = a
+        self.w = w
+        if intensity == 'quadratic':
+            self.intensity = self.quadratic_intensity
+        elif intensity == 'sine':
+            self.intensity = self.sine_intensity
+        elif intensity == 'xsine':
+            self.intensity = self.cross_sine_intensity
+        else:
+            raise ValueError('Not intensity function found')
+
+
+
+    def gmm_sample(mean=None, w=None, N=10000,n=4,d=2,seed=10):
+        np.random.seed(seed)
+        if mean is None:
+            mean = np.random.randn(n,d)*10
+        if w is None:
+            w = np.random.rand(n)
+        w = w/sum(w)
+        multi = np.random.multinomial(N,w)
+        X = np.zeros((N,d))
+        base = 0
+        for i in range(n):
+            X[base:base+multi[i],:] = np.random.multivariate_normal(mean[i,:], np.eye(d), multi[i])
+            base += multi[i]
+        
+        llh = np.zeros(N)
+        for i in range(n):
+            llh += w[i] * stats.multivariate_normal.pdf(X, mean[i,:], np.eye(2))
+        #llh = llh/sum(llh)
+        return X, llh
+
+    def const(X):
+        return np.ones(len(X))*8
+
+    def lamb_sin(X):
+        return np.sum(np.sin(np.pi*X),1)*0.3
+
+    def rej_sample(X, llh, func = const):
+        rate = func(X)/llh
+        u = np.random.rand(len(X))
+        X_acc = X[u < rate]
+        return X_acc
+
+    def sample(self, n, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = rej_sample()
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSPoisson2D
