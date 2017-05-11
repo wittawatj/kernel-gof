@@ -633,27 +633,12 @@ class DSPoisson2D(DataSource):
     """
      A DataSource implementing non homogenous poisson process.
     """
-    def __init__(self, intensity = 'quadratic', w=1.0, a=1.0):
+    def __init__(self):
         """
-        lambda_(X,Y) = a*X^2 + Y^2
-        X = 1/(1+exp(s))
-        Y = 1/(1+exp(t))
-        X, Y \in [0,1], s,t \in R
+        2D spatial poission process with default lambda_(X,Y) = sin(pi*X)+sin(pi*Y)
         """
-        self.a = a
-        self.w = w
-        if intensity == 'quadratic':
-            self.intensity = self.quadratic_intensity
-        elif intensity == 'sine':
-            self.intensity = self.sine_intensity
-        elif intensity == 'xsine':
-            self.intensity = self.cross_sine_intensity
-        else:
-            raise ValueError('Not intensity function found')
 
-
-
-    def gmm_sample(mean=None, w=None, N=10000,n=4,d=2,seed=10):
+    def gmm_sample(self, mean=None, w=None, N=10000,n=4,d=2,seed=10):
         np.random.seed(seed)
         if mean is None:
             mean = np.random.randn(n,d)*10
@@ -673,21 +658,24 @@ class DSPoisson2D(DataSource):
         #llh = llh/sum(llh)
         return X, llh
 
-    def const(X):
+    def const(self, X):
         return np.ones(len(X))*8
 
-    def lamb_sin(X):
+    def lamb_sin(self, X):
         return np.sum(np.sin(np.pi*X),1)*0.3
 
-    def rej_sample(X, llh, func = const):
-        rate = func(X)/llh
+    def rej_sample(self, X, llh, func = None):
+        if func is None:
+            self.func = self.lamb_sin
+        rate = self.func(X)/llh
         u = np.random.rand(len(X))
         X_acc = X[u < rate]
         return X_acc
 
     def sample(self, n, seed=3):
         with util.NumpySeedContext(seed=seed):
-            X = rej_sample()
+            X_gmm, llh = self.gmm_sample()
+            X = rej_sample(X_gmm)
             if len(X.shape) ==1:
                 # This can happen if d=1
                 X = X[:, np.newaxis]
@@ -695,3 +683,22 @@ class DSPoisson2D(DataSource):
 
 # end class DSPoisson2D
 
+class DSRealData(DataSource):
+    """
+     A DataSource implemting on real dataset.
+    """
+    def __init__(self, X):
+        """
+        2D spatial poission process with default lambda_(X,Y) = sin(pi*X)+sin(pi*Y)
+        """
+        self.X = X
+
+    def sample(self, seed=3):
+        with util.NumpySeedContext(seed=seed):
+            X = self.X
+            if len(X.shape) ==1:
+                # This can happen if d=1
+                X = X[:, np.newaxis]
+            return Data(X)
+
+# end class DSRealData
