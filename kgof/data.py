@@ -702,3 +702,24 @@ class DSRealData(DataSource):
             return Data(X)
 
 # end class DSRealData
+
+class DSResample(DataSource):
+    """
+    A DataSource which subsamples without replacement from the specified 
+    numpy array (n x d).
+    """
+
+    def __init__(self, X):
+        """
+        X: n x d numpy array. n = sample size. d = input dimension
+        """
+        self.X = X
+
+    def sample(self, n, seed=900):
+        X = self.X
+        if n > X.shape[0]:
+            # Sample more than what we have
+            raise ValueError('Cannot subsample n={0} from only {1} points.'.format(n, X.shape[0]))
+        dat = Data(self.X)
+        return dat.subsample(n, seed=seed)
+
