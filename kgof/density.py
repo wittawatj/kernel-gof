@@ -130,8 +130,83 @@ class Normal(UnnormalizedDensity):
     def dim(self):
         return len(self.mean)
 
-
 # end Normal
+
+class IsoGaussianMixture(UnnormalizedDensity):
+    """
+    UnnormalizedDensity of a Gaussian mixture in R^d where each component 
+    is an isotropic multivariate normal distribution.
+
+    Let k be the number of mixture components.
+    """
+    def __init__(self, means, variances, pmix=None):
+        """
+        means: a k x d 2d array specifying the means.
+        variances: a one-dimensional length-k array of variances
+        pmix: a one-dimensional length-k array of mixture weights. Sum to one.
+        """
+        k, d = means.shape
+        if k != len(variances):
+            raise ValueError('Number of components in means and variances do not match.')
+
+        if pmix is None:
+            pmix = np.ones(k)/float(k)
+
+        if np.abs(np.sum(pmix) - 1) > 1e-8:
+            raise ValueError('Mixture weights do not sum to 1.')
+
+        self.pmix = pmix
+        self.means = means
+        self.variances = variances
+
+    def log_den(self, X):
+        pmix = self.pmix
+        means = self.means
+        variances = self.variances
+        k, d = self.means.shape
+        n = X.shape[0]
+        den = np.zeros(n, dtype=float)
+        for i in range(k):
+            norm_den_i = IsoGaussianMixture.normal_density(means[i],
+                    variances[i], X)
+            den = den + norm_den_i*pmix[i]
+        return np.log(den)
+
+    #def grad_log(self, X):
+    #    """
+    #    Return an n x d numpy array of gradients.
+    #    """
+    #    pmix = self.pmix
+    #    means = self.means
+    #    variances = self.variances
+    #    k, d = self.means.shape
+    #    # exact density. length-n array
+    #    den = np.exp(self.log_den(X))
+    #    for i in range(k):
+    #        norm_den_i = IsoGaussianMixture.normal_density(means[i],
+    #                variances[i], X)
+
+
+    @staticmethod
+    def normal_density(mean, variance, X):
+        """
+        Exact density (not log density) of an isotropic Gaussian.
+        mean: length-d array
+        variance: scalar variances
+        X: n x d 2d-array
+        """
+        Z = np.sqrt(2.0*np.pi*variance)
+        unden = np.exp(-np.sum((X-mean)**2.0, 1)/(2.0*variance) )
+        den = unden/Z
+        assert len(den) == X.shape[0]
+        return den
+
+    def get_datasource(self):
+        return data.DSIsoGaussianMixture(self.means, self.variances, self.pmix)
+
+    def dim(self):
+        k, d = self.means.shape
+        return d
 
 class GaussBernRBM(UnnormalizedDensity):
     """
@@ -239,7 +314,6 @@ class ISIPoissonSine(UnnormalizedDensity):
 
 # end ISIPoissonSine
 
-
 class Gamma(UnnormalizedDensity):
     """
     A gamma distribution.
@@ -262,11 +336,9 @@ class Gamma(UnnormalizedDensity):
     def get_datasource(self):
         return data.DSNormal(self.mean, self.cov)
 
+
     def dim(self):
         return 1
-
-
-# end Normal
 
 
 class LogGamma(UnnormalizedDensity):
@@ -294,9 +366,8 @@ class LogGamma(UnnormalizedDensity):
 
     def dim(self):
         return 1
-
-
 # end LogGamma
+
 
 
 class ISILogPoissonLinear(UnnormalizedDensity):
@@ -380,4 +451,4 @@ class ISISigmoidPoisson2D(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end class ISISigmoidPoisson2D
+# end class SigmoidPoisson2D

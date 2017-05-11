@@ -156,6 +156,57 @@ class DSNormal(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
+class DSIsoGaussianMixture(DataSource):
+    """
+    A DataSource implementing a Gaussian mixture in R^d where each component 
+    is an isotropic multivariate normal distribution.
+
+    Let k be the number of mixture components.
+    """
+    def __init__(self, means, variances, pmix=None):
+        """
+        means: a k x d 2d array specifying the means.
+        variances: a one-dimensional length-k array of variances
+        pmix: a one-dimensional length-k array of mixture weights. Sum to one.
+        """
+        k, d = means.shape
+        if k != len(variances):
+            raise ValueError('Number of components in means and variances do not match.')
+
+        if pmix is None:
+            pmix = np.ones(k)/float(k)
+
+        if np.abs(np.sum(pmix) - 1) > 1e-8:
+            raise ValueError('Mixture weights do not sum to 1.')
+
+        self.pmix = pmix
+        self.means = means
+        self.variances = variances
+
+    def sample(self, n, seed=29):
+        pmix = self.pmix
+        means = self.means
+        variances = self.variances
+        k, d = self.means.shape
+        sam_list = []
+        with util.NumpySeedContext(seed=seed):
+            # counts for each mixture component 
+            counts = np.random.multinomial(n, pmix, size=1)
+
+            # counts is a 2d array
+            counts = counts[0]
+
+            # For each component, draw from its corresponding mixture component.            
+            for i, nc in enumerate(counts):
+                # Sample from ith component
+                sam_i = np.random.randn(nc, d)*np.sqrt(variances[i]) + means[i]
+                sam_list.append(sam_i)
+            sample = np.vstack(sam_list)
+            assert sample.shape[0] == n
+            np.random.shuffle(sample)
+        return Data(sample)
+
+
 class DSLaplace(DataSource):
     """
     A DataSource for a multivariate Laplace distribution.
@@ -438,7 +489,7 @@ class DSLogGamma(DataSource):
                 X = X[:, np.newaxis]
             return Data(X)
 
-# end class DSGamma
+# end class DSLogGamma
 
 class DSISILogPoissonLinear(DataSource):
     """
@@ -576,7 +627,6 @@ class DSISISigmoidPoisson2D(DataSource):
                 # This can happen if d=1
                 X = X[:, np.newaxis]
             return Data(X)
-
 # end class DSISISigmoidPoisson2D
 
 class DSPoisson2D(DataSource):
@@ -644,3 +694,4 @@ class DSPoisson2D(DataSource):
             return Data(X)
 
 # end class DSPoisson2D
+
