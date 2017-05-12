@@ -633,13 +633,15 @@ class DSPoisson2D(DataSource):
     """
      A DataSource implementing non homogenous poisson process.
     """
-    def __init__(self):
+    def __init__(self, w = 1.0):
         """
-        2D spatial poission process with default lambda_(X,Y) = sin(pi*X)+sin(pi*Y)
+        2D spatial poission process with default lambda_(X,Y) = sin(w*pi*X)+sin(w*pi*Y)
         """
+        self.w = w
 
-    def gmm_sample(self, mean=None, w=None, N=10000,n=4,d=2,seed=10):
+    def gmm_sample(self, mean=None, w=None, N=10000,n=10,d=2,seed=10):
         np.random.seed(seed)
+        self.d = d
         if mean is None:
             mean = np.random.randn(n,d)*10
         if w is None:
@@ -649,12 +651,12 @@ class DSPoisson2D(DataSource):
         X = np.zeros((N,d))
         base = 0
         for i in range(n):
-            X[base:base+multi[i],:] = np.random.multivariate_normal(mean[i,:], np.eye(d), multi[i])
+            X[base:base+multi[i],:] = np.random.multivariate_normal(mean[i,:], np.eye(self.d), multi[i])
             base += multi[i]
         
         llh = np.zeros(N)
         for i in range(n):
-            llh += w[i] * stats.multivariate_normal.pdf(X, mean[i,:], np.eye(2))
+            llh += w[i] * stats.multivariate_normal.pdf(X, mean[i,:], np.eye(self.d))
         #llh = llh/sum(llh)
         return X, llh
 
@@ -662,7 +664,7 @@ class DSPoisson2D(DataSource):
         return np.ones(len(X))*8
 
     def lamb_sin(self, X):
-        return np.sum(np.sin(np.pi*X),1)*0.3
+        return np.prod(np.sin(self.w*np.pi*X),1)*15
 
     def rej_sample(self, X, llh, func = None):
         if func is None:
@@ -674,8 +676,8 @@ class DSPoisson2D(DataSource):
 
     def sample(self, n, seed=3):
         with util.NumpySeedContext(seed=seed):
-            X_gmm, llh = self.gmm_sample()
-            X = rej_sample(X_gmm)
+            X_gmm, llh = self.gmm_sample(N=n)
+            X = X_gmm
             if len(X.shape) ==1:
                 # This can happen if d=1
                 X = X[:, np.newaxis]
@@ -683,25 +685,6 @@ class DSPoisson2D(DataSource):
 
 # end class DSPoisson2D
 
-class DSRealData(DataSource):
-    """
-     A DataSource implemting on real dataset.
-    """
-    def __init__(self, X):
-        """
-        2D spatial poission process with default lambda_(X,Y) = sin(pi*X)+sin(pi*Y)
-        """
-        self.X = X
-
-    def sample(self, seed=3):
-        with util.NumpySeedContext(seed=seed):
-            X = self.X
-            if len(X.shape) ==1:
-                # This can happen if d=1
-                X = X[:, np.newaxis]
-            return Data(X)
-
-# end class DSRealData
 
 class DSResample(DataSource):
     """

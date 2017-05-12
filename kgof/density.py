@@ -451,11 +451,33 @@ class ISISigmoidPoisson2D(UnnormalizedDensity):
     def dim(self):
         return 1
 
-# end class SigmoidPoisson2D
+# end class ISISigmoidPoisson2D
 
-class RealData(UnnormalizedDensity):
+
+class Poisson2D(UnnormalizedDensity):
+    """
+    Unnormalized density of nonhomogeneous spatial poisson process
+    """
+    def __init__(self, w=1.0):
+        """
+        lambda_(X,Y) = sin(w*pi*X)+sin(w*pi*Y)
+        """
+        self.w = w
+
+    def lamb_sin(self, X):
+        return np.prod(np.sin(self.w*np.pi*X),1)
+
+    def log_den(self, X):
+        unden = np.log(self.gmm_den(X))
+        return unden
+
+    def dim(self):
+        return 1
+    
+class Resample(UnnormalizedDensity):
     """
     Unnormalized Density of real dataset with estimated intensity function
+    fit takes the function to evaluate the density of resampled data
     """
     def __init__(self, fit):
         self.fit = fit
