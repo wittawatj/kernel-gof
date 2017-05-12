@@ -148,7 +148,7 @@ def job_kstein_med(p, data_source, tr, te, r):
         med = util.meddistance(X, subsample=1000)
         k = kernel.KGauss(med**2)
 
-        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=400, seed=r)
+        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=1000, seed=r)
         kstein_result = kstein.perform_test(data)
     return { 'test_result': kstein_result, 'time_secs': t.secs}
 
@@ -270,7 +270,7 @@ def gaussbern_rbm_probs(vars_perturb_B, dx=50, dh=10, n=sample_size):
     We follow the parameter settings as described in section 6 of Liu et al.,
     2016.
 
-    - var_perturb_B: a list of Gaussian noise variances for perturbing B.
+    - vars_perturb_B: a list of Gaussian noise variances for perturbing B.
     - dx: observed dimension
     - dh: latent dimension
     """

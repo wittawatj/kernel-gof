@@ -94,7 +94,7 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
         ops = {
             'reg': 1e-2,
             'max_iter': 30,
-            'tol_fun': 1e-4,
+            'tol_fun': 1e-5,
             'disp': True,
             'locs_bounds_frac':10.0,
             'gwidth_lb': 1e-1,
@@ -127,7 +127,7 @@ def job_kstein_med(p, data_source, tr, te, r):
         med = util.meddistance(X, subsample=1000)
         k = kernel.KGauss(med**2)
 
-        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=400, seed=r)
+        kstein = gof.KernelSteinTest(p, k, alpha=alpha, n_simulate=1000, seed=r)
         kstein_result = kstein.perform_test(data)
     return { 'test_result': kstein_result, 'time_secs': t.secs}
 
@@ -215,10 +215,10 @@ ex = 1
 alpha = 0.05
 
 # Proportion of training sample relative to the full sample size n
-tr_proportion = 0.5
+tr_proportion = 0.8
 
 # repetitions for each sample size 
-reps = 50
+reps = 30
 
 # tests to try
 method_job_funcs = [ 
@@ -233,6 +233,31 @@ method_job_funcs = [
 is_rerun = False
 #---------------------------
 
+
+def gbrbm_perturb(var_perturb_B, dx=50, dh=10):
+    """
+    Get a Gaussian-Bernoulli RBM problem where the first entry of the B matrix
+    (the matrix linking the latent and the observation) is perturbed.
+
+    - var_perturb_B: Gaussian noise variance for perturbing B.
+    - dx: observed dimension
+    - dh: latent dimension
+
+    Return p (density), data source
+    """
+    with util.NumpySeedContext(seed=10):
+        B = np.random.randint(0, 2, (dx, dh))*2 - 1.0
+        b = np.random.randn(dx)
+        c = np.random.randn(dh)
+        p = density.GaussBernRBM(B, b, c)
+
+        B_perturb = np.copy(B)
+        B_perturb[0, 0] = B_perturb[0, 0] + \
+            np.random.randn(1)*np.sqrt(var_perturb_B)
+        ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=50)
+
+    return p, ds
+
 def get_ns_pqsource(prob_label):
     """
     Return (ns, p, ds), a tuple of
@@ -242,20 +267,34 @@ def get_ns_pqsource(prob_label):
     - ds: a DataSource, each corresponding to one parameter setting.
         The DataSource generates sample from q.
     """
-    gmd_p01_d20_ns = [i*1000 for i in range(1, 4+1)]
+    gmd_p01_d10_ns = [1000, 3000, 5000, 7000]
 
     #gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
     prob2tuples = { 
 
             # vary d. P = N(0, I), Q = N( (c,..0), I)
-            'gmd_p05_d10_ns': (gmd_p01_d20_ns,
+            'gmd_p03_d10_ns': (gmd_p01_d10_ns,
                 density.IsotropicNormal(np.zeros(10), 1),
-                data.DSIsotropicNormal(np.hstack((0.05, np.zeros(10-1))), 1) 
+                data.DSIsotropicNormal(np.hstack((0.03, np.zeros(10-1))), 1) 
                 ),
 
-            ## Gaussian Bernoulli RBM. dx=50, dh=10 
-            #'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_vars,
-            #    dx=50, dh=10, n=sample_size),
+            # Gaussian Bernoulli RBM. dx=50, dh=10 
+            # Perturbation variance to B[0, 0] is 0.1
+            'gbrbm_dx50_dh10_vp1': 
+                ([i*1000 for i in range(1, 5+1)], ) + 
+                gbrbm_perturb(var_perturb_B=0.1, dx=50, dh=10), 
+
+            # Gaussian Bernoulli RBM. dx=20, dh=10 
+            # Perturbation variance to B[0, 0] is 0.1
+            'gbrbm_dx20_dh10_vp1': 
+                ([i*1000 for i in range(1, 5+1)], ) + 
+                gbrbm_perturb(var_perturb_B=0.1, dx=20, dh=10), 
+
+            # Gaussian Bernoulli RBM. dx=10, dh=5 
+            # Perturbation variance to B[0, 0] is 0.1
+            'gbrbm_dx10_dh5_vp1': 
+                ([i*1000 for i in range(1, 5+1)], ) + 
+                gbrbm_perturb(var_perturb_B=0.1, dx=10, dh=5), 
 
             }
     if prob_label not in prob2tuples:
