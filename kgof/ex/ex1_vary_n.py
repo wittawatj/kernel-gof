@@ -1,7 +1,4 @@
-"""Simulation to examine the P(reject) as the parameters for each problem are 
-varied. What varies will depend on the problem."""
-
-__author__ = 'wittawat'
+"""Simulation to test the test power vs increasing sample size"""
 
 import kgof
 import kgof.data as data
@@ -64,13 +61,11 @@ def job_fssdJ1q_med(p, data_source, tr, te, r, J=1, null_sim=None):
         fssd_med_result = fssd_med.perform_test(data)
     return { 'test_result': fssd_med_result, 'time_secs': t.secs}
 
-
 def job_fssdJ5q_med(p, data_source, tr, te, r):
     """
     FSSD. J=5
     """
     return job_fssdJ1q_med(p, data_source, tr, te, r, J=5)
-
 
 def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
     """
@@ -119,22 +114,6 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
 def job_fssdJ5q_opt(p, data_source, tr, te, r):
     return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5)
 
-def job_fssdJ5p_opt(p, data_source, tr, te, r):
-    """
-    The suffix p means that p is sampled to get a sample for computing the
-    covariance matrix under H0.
-    """
-    null_sim = gof.FSSDH0SimCovDraw(n_draw=2000, n_simulate=2000, seed=r)
-    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5, null_sim=null_sim)
-
-def job_fssdJ10p_opt(p, data_source, tr, te, r):
-    """
-    The suffix p means that p is sampled to get a sample for computing the
-    covariance matrix under H0.
-    """
-    null_sim = gof.FSSDH0SimCovDraw(n_draw=2000, n_simulate=2000, seed=r)
-    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=10, null_sim=null_sim)
-
 def job_kstein_med(p, data_source, tr, te, r):
     """
     Kernel Stein discrepancy test of Liu et al., 2016 and Chwialkowski et al.,
@@ -169,15 +148,13 @@ def job_lin_kstein_med(p, data_source, tr, te, r):
         lin_kstein_result = lin_kstein.perform_test(data)
     return { 'test_result': lin_kstein_result, 'time_secs': t.secs}
 
-
 # Define our custom Job, which inherits from base class IndependentJob
-class Ex2Job(IndependentJob):
+class Ex1Job(IndependentJob):
    
-    def __init__(self, aggregator, p, data_source,
-            prob_label, rep, job_func, prob_param):
+    def __init__(self, aggregator, p, data_source, prob_label, rep, job_func, n):
         #walltime = 60*59*24 
         walltime = 60*59
-        memory = int(tr_proportion*sample_size*1e-2) + 50
+        memory = int(tr_proportion*n*1e-2) + 50
 
         IndependentJob.__init__(self, aggregator, walltime=walltime,
                                memory=memory)
@@ -187,7 +164,7 @@ class Ex2Job(IndependentJob):
         self.prob_label = prob_label
         self.rep = rep
         self.job_func = job_func
-        self.prob_param = prob_param
+        self.n = n
 
     # we need to define the abstract compute method. It has to return an instance
     # of JobResult base class
@@ -196,16 +173,14 @@ class Ex2Job(IndependentJob):
         p = self.p
         data_source = self.data_source 
         r = self.rep
-        prob_param = self.prob_param
+        n = self.n
         job_func = self.job_func
-        # sample_size is a global variable
-        data = data_source.sample(sample_size, seed=r)
+        data = data_source.sample(n, seed=r)
         with util.ContextTimer() as t:
             tr, te = data.split_tr_te(tr_proportion=tr_proportion, seed=r+21 )
             prob_label = self.prob_label
             logger.info("computing. %s. prob=%s, r=%d,\
-                    param=%.3g"%(job_func.__name__, prob_label, r, prob_param))
-
+                    n=%d"%(job_func.__name__, prob_label, r, n))
 
             job_result = job_func(p, data_source, tr, te, r)
 
@@ -214,161 +189,82 @@ class Ex2Job(IndependentJob):
             # submit the result to my own aggregator
             self.aggregator.submit_result(result)
             func_name = job_func.__name__
-        logger.info("done. ex2: %s, prob=%s, r=%d, param=%.3g. Took: %.3g s "%(func_name,
-            prob_label, r, prob_param, t.secs))
+        logger.info("done. ex2: %s, prob=%s, r=%d, n=%d. Took: %.3g s "%(func_name,
+            prob_label, r, n, t.secs))
 
         # save result
-        fname = '%s-%s-n%d_r%d_p%.3f_a%.3f_trp%.2f.p' \
-                %(prob_label, func_name, sample_size, r, prob_param, alpha,
-                        tr_proportion)
+        fname = '%s-%s-n%d_r%d_a%.3f_trp%.2f.p' \
+                %(prob_label, func_name, n, r, alpha, tr_proportion)
         glo.ex_save_result(ex, job_result, prob_label, fname)
 
-
-# This import is needed so that pickle knows about the class Ex2Job.
+# This import is needed so that pickle knows about the class Ex1Job.
 # pickle is used when collecting the results from the submitted jobs.
-from kgof.ex.ex2_prob_params import Ex2Job
-from kgof.ex.ex2_prob_params import job_fssdJ1q_med
-from kgof.ex.ex2_prob_params import job_fssdJ5q_med
-from kgof.ex.ex2_prob_params import job_fssdJ1q_opt
-from kgof.ex.ex2_prob_params import job_fssdJ5q_opt
-from kgof.ex.ex2_prob_params import job_fssdJ5p_opt
-from kgof.ex.ex2_prob_params import job_fssdJ10p_opt
-from kgof.ex.ex2_prob_params import job_kstein_med
-from kgof.ex.ex2_prob_params import job_lin_kstein_med
+from kgof.ex.ex1_vary_n import Ex1Job
+from kgof.ex.ex1_vary_n import job_fssdJ1q_med
+from kgof.ex.ex1_vary_n import job_fssdJ5q_med
+from kgof.ex.ex1_vary_n import job_fssdJ1q_opt
+from kgof.ex.ex1_vary_n import job_fssdJ5q_opt
+from kgof.ex.ex1_vary_n import job_kstein_med
+from kgof.ex.ex1_vary_n import job_lin_kstein_med
+
 
 #--- experimental setting -----
-ex = 2
+ex = 1
 
-# sample size = n (the training and test sizes are n/2)
-sample_size = 1000
-
-# number of test locations / test frequencies J
+# significance level of the test
 alpha = 0.05
+
+# Proportion of training sample relative to the full sample size n
 tr_proportion = 0.5
-# repetitions for each parameter setting
+
+# repetitions for each sample size 
 reps = 50
 
+# tests to try
 method_job_funcs = [ 
-        #job_fssdJ1q_med, 
         job_fssdJ5q_med, 
-        #job_fssdJ1q_opt, 
-        job_fssdJ5q_opt,
-        #job_fssdJ5p_opt,
-        #job_fssdJ10p_opt,
-        job_kstein_med, 
+        job_fssdJ5q_opt, 
+        job_kstein_med,
         job_lin_kstein_med,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
-# setting of (pi, r) already exists.
+# setting of (ni, r) already exists.
 is_rerun = False
 #---------------------------
 
-def gaussbern_rbm_probs(vars_perturb_B, dx=50, dh=10, n=sample_size):
+def get_ns_pqsource(prob_label):
     """
-    Get a sequence of Gaussian-Bernoulli RBM problems.
-    We follow the parameter settings as described in section 6 of Liu et al.,
-    2016.
-
-    - var_perturb_B: a list of Gaussian noise variances for perturbing B.
-    - dx: observed dimension
-    - dh: latent dimension
-    """
-    probs = []
-    for i, var in enumerate(vars_perturb_B):
-        with util.NumpySeedContext(seed=i+1000):
-            B = np.random.randint(0, 2, (dx, dh))*2 - 1.0
-            b = np.random.randn(dx)
-            c = np.random.randn(dh)
-            p = density.GaussBernRBM(B, b, c)
-
-            B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
-            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=50)
-
-            probs.append((var, p, gb_rbm))
-    return probs
-
-def get_pqsource_list(prob_label):
-    """
-    Return [(prob_param, p, ds) for ... ], a list of tuples
+    Return (ns, p, ds), a tuple of
     where 
-    - prob_param: a problem parameters. Each parameter has to be a
-      scalar (so that we can plot them later). Parameters are preferably
-      positive integers.
+    - ns: a list of sample sizes
     - p: a Density representing the distribution p
     - ds: a DataSource, each corresponding to one parameter setting.
         The DataSource generates sample from q.
     """
-    sg_ds = [1, 5, 10, 15]
-    gmd_ds = [5, 20, 40, 60]
-    # vary the mean
-    gmd_d10_ms = [0, 0.02, 0.04, 0.06]
-    gvinc_d1_vs = [1, 1.5, 2, 2.5] 
-    gvinc_d5_vs = [1, 1.5, 2, 2.5]
-    gvsub1_d1_vs = [0.1, 0.3, 0.5, 0.7]
-    gvd_ds = [1, 5, 10, 15]
+    gmd_p01_d20_ns = [i*1000 for i in range(1, 4+1)]
 
-    gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
-    glaplace_ds = [1, 5, 10, 15]
+    #gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
     prob2tuples = { 
-            # H0 is true. vary d. P = Q = N(0, I)
-            'sg': [(d, density.IsotropicNormal(np.zeros(d), 1),
-                data.DSIsotropicNormal(np.zeros(d), 1) ) for d in sg_ds],
 
             # vary d. P = N(0, I), Q = N( (c,..0), I)
-            'gmd': [(d, density.IsotropicNormal(np.zeros(d), 1),
-                data.DSIsotropicNormal(np.hstack((1, np.zeros(d-1))), 1) ) 
-                for d in gmd_ds
-                ],
-            # P = N(0, I), Q = N( (m, ..0), I). Vary m
-            'gmd_d10_ms': [(m, density.IsotropicNormal(np.zeros(10), 1),
-                data.DSIsotropicNormal(np.hstack((m, np.zeros(9))), 1) )
-                for m in gmd_d10_ms
-                ],
-            # d=1. Increase the variance. P = N(0, I). Q = N(0, v*I)
-            'gvinc_d1': [(var, density.IsotropicNormal(np.zeros(1), 1),
-                data.DSIsotropicNormal(np.zeros(1), var) ) 
-                for var in gvinc_d1_vs
-                ],
-            # d=5. Increase the variance. P = N(0, I). Q = N(0, v*I)
-            'gvinc_d5': [(var, density.IsotropicNormal(np.zeros(5), 1),
-                data.DSIsotropicNormal(np.zeros(5), var) ) 
-                for var in gvinc_d5_vs
-                ],
-            # d=1. P=N(0,1), Q(0,v). Consider the variance below 1.
-            'gvsub1_d1': [(var, density.IsotropicNormal(np.zeros(1), 1),
-                data.DSIsotropicNormal(np.zeros(1), var) ) 
-                for var in gvsub1_d1_vs
-                ],
-            # Gaussian variance difference problem. Only the variance 
-            # of the first dimenion differs. d varies.
-            'gvd': [(d, density.Normal(np.zeros(d), np.eye(d) ), 
-                data.DSNormal(np.zeros(d), np.diag(np.hstack((2, np.ones(d-1)))) ))
-                for d in gvd_ds],
+            'gmd_p05_d10_ns': (gmd_p01_d20_ns,
+                density.IsotropicNormal(np.zeros(10), 1),
+                data.DSIsotropicNormal(np.hstack((0.05, np.zeros(10-1))), 1) 
+                ),
 
-            # Gaussian Bernoulli RBM. dx=50, dh=10 
-            'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_vars,
-                dx=50, dh=10, n=sample_size),
+            ## Gaussian Bernoulli RBM. dx=50, dh=10 
+            #'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_vars,
+            #    dx=50, dh=10, n=sample_size),
 
-            # p: N(0, I), q: standard Laplace. Vary d
-            'glaplace': [(d, density.IsotropicNormal(np.zeros(d), 1), 
-                # Scaling of 1/sqrt(2) will make the variance 1.
-                data.DSLaplace(d=d, loc=0, scale=1.0/np.sqrt(2))) for d in glaplace_ds],
             }
     if prob_label not in prob2tuples:
         raise ValueError('Unknown problem label. Need to be one of %s'%str(prob2tuples.keys()) )
     return prob2tuples[prob_label]
 
-
 def run_problem(prob_label):
     """Run the experiment"""
-    L = get_pqsource_list(prob_label)
-    prob_params, ps, data_sources = zip(*L)
-    # make them lists 
-    prob_params = list(prob_params)
-    ps = list(ps)
-    data_sources = list(data_sources)
-
+    ns, p, ds = get_ns_pqsource(prob_label)
     # ///////  submit jobs //////////
     # create folder name string
     #result_folder = glo.result_folder()
@@ -386,32 +282,30 @@ def run_problem(prob_label):
     #engine = SerialComputationEngine()
     engine = SlurmComputationEngine(batch_parameters)
     n_methods = len(method_job_funcs)
-    # repetitions x len(prob_params) x #methods
-    aggregators = np.empty((reps, len(prob_params), n_methods ), dtype=object)
+    # repetitions x len(ns) x #methods
+    aggregators = np.empty((reps, len(ns), n_methods ), dtype=object)
     for r in range(reps):
-        for pi, param in enumerate(prob_params):
+        for ni, n in enumerate(ns):
             for mi, f in enumerate(method_job_funcs):
                 # name used to save the result
                 func_name = f.__name__
-                fname = '%s-%s-n%d_r%d_p%.3f_a%.3f_trp%.2f.p' \
-                    %(prob_label, func_name, sample_size, r, param, alpha,
-                            tr_proportion)
+                fname = '%s-%s-n%d_r%d_a%.3f_trp%.2f.p' \
+                        %(prob_label, func_name, n, r, alpha, tr_proportion)
                 if not is_rerun and glo.ex_file_exists(ex, prob_label, fname):
                     logger.info('%s exists. Load and return.'%fname)
                     job_result = glo.ex_load_result(ex, prob_label, fname)
 
                     sra = SingleResultAggregator()
                     sra.submit_result(SingleResult(job_result))
-                    aggregators[r, pi, mi] = sra
+                    aggregators[r, ni, mi] = sra
                 else:
                     # result not exists or rerun
 
                     # p: an UnnormalizedDensity object
-                    p = ps[pi]
-                    job = Ex2Job(SingleResultAggregator(), p, data_sources[pi],
-                            prob_label, r, f, param)
+                    job = Ex1Job(SingleResultAggregator(), p, ds, prob_label,
+                            r, f, n)
                     agg = engine.submit_job(job)
-                    aggregators[r, pi, mi] = agg
+                    aggregators[r, ni, mi] = agg
 
     # let the engine finish its business
     logger.info("Wait for all call in engine")
@@ -419,38 +313,36 @@ def run_problem(prob_label):
 
     # ////// collect the results ///////////
     logger.info("Collecting results")
-    job_results = np.empty((reps, len(prob_params), n_methods), dtype=object)
+    job_results = np.empty((reps, len(ns), n_methods), dtype=object)
     for r in range(reps):
-        for pi, param in enumerate(prob_params):
+        for ni, n in enumerate(ns):
             for mi, f in enumerate(method_job_funcs):
-                logger.info("Collecting result (%s, r=%d, param=%.3g)" %
-                        (f.__name__, r, param))
+                logger.info("Collecting result (%s, r=%d, n=%rd)" %
+                        (f.__name__, r, n))
                 # let the aggregator finalize things
-                aggregators[r, pi, mi].finalize()
+                aggregators[r, ni, mi].finalize()
 
                 # aggregators[i].get_final_result() returns a SingleResult instance,
                 # which we need to extract the actual result
-                job_result = aggregators[r, pi, mi].get_final_result().result
-                job_results[r, pi, mi] = job_result
+                job_result = aggregators[r, ni, mi].get_final_result().result
+                job_results[r, ni, mi] = job_result
 
     #func_names = [f.__name__ for f in method_job_funcs]
     #func2labels = exglobal.get_func2label_map()
     #method_labels = [func2labels[f] for f in func_names if f in func2labels]
 
     # save results 
-    results = {'job_results': job_results, 'prob_params': prob_params, 
-            'alpha': alpha, 'repeats': reps, 
-            'ps': ps,
-            'list_data_source': data_sources, 
+    results = {'job_results': job_results, 'data_source': ds, 
+            'alpha': alpha, 'repeats': reps, 'ns': ns,
+            'p': p,
             'tr_proportion': tr_proportion,
             'method_job_funcs': method_job_funcs, 'prob_label': prob_label,
-            'sample_size': sample_size, 
             }
     
     # class name 
-    fname = 'ex%d-%s-me%d_n%d_rs%d_pmi%.3f_pma%.3f_a%.3f_trp%.2f.p' \
-        %(ex, prob_label, n_methods, sample_size, reps, min(prob_params),
-                max(prob_params), alpha, tr_proportion)
+    fname = 'ex%d-%s-me%d_rs%d_nmi%d_nma%d_a%.3f_trp%.2f.p' \
+        %(ex, prob_label, n_methods, reps, min(ns), max(ns), alpha,
+                tr_proportion)
 
     glo.ex_save_result(ex, results, fname)
     logger.info('Saved aggregated results to %s'%fname)
@@ -461,7 +353,6 @@ def main():
         print('Usage: %s problem_label'%sys.argv[0])
         sys.exit(1)
     prob_label = sys.argv[1]
-
     run_problem(prob_label)
 
 if __name__ == '__main__':
