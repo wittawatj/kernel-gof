@@ -320,11 +320,12 @@ class DSGaussBernRBM(DataSource):
         with util.NumpySeedContext(seed=seed):
             X = np.random.randn(n, dx)
             H = np.random.randint(1, 2, (n, dh))*2 - 1.0
-        # burn-in
-        for t in range(self.burnin):
+
+            # burn-in
+            for t in range(self.burnin):
+                X, H = self._blocked_gibbs_next(X, H)
+            # sampling
             X, H = self._blocked_gibbs_next(X, H)
-        # sampling
-        X, H = self._blocked_gibbs_next(X, H)
         if return_latent:
             return Data(X), H
         else:

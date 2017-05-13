@@ -69,7 +69,7 @@ class QuadMMDGof(gof.GofTest):
 
             # Draw sample from p. #sample to draw is the same as that of dat
             ds = p.get_datasource()
-            p_sample = ds.sample(dat.sample_size(), seed=seed)
+            p_sample = ds.sample(dat.sample_size(), seed=seed+12)
 
             # Run the two-sample test on p_sample and dat
             # Make a two-sample test data
