@@ -298,11 +298,7 @@ class DSGaussBernRBM(DataSource):
         # Ph: n x dh matrix
         Ph = DSGaussBernRBM.sigmoid(2*XBC)
         # H: n x dh
-        # Don't know how to make this faster.
-        H = np.zeros((n, dh))
-        for i in range(n):
-            for j in range(dh):
-                H[i, j] = stats.bernoulli.rvs(p=Ph[i, j], size=1)*2 - 1.0
+        H = (np.random.rand(n, dh) <= Ph)*2 - 1.0
         assert np.all(np.abs(H) - 1 <= 1e-6 )
         # Draw X.
         # mean: n x dx
