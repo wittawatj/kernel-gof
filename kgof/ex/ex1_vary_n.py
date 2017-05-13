@@ -5,6 +5,7 @@ import kgof.data as data
 import kgof.glo as glo
 import kgof.density as density
 import kgof.goftest as gof
+import kgof.mmd as mgof
 import kgof.util as util 
 import kgof.kernel as kernel 
 
@@ -96,9 +97,9 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
             'max_iter': 30,
             'tol_fun': 1e-5,
             'disp': True,
-            'locs_bounds_frac':10.0,
-            'gwidth_lb': 1e-1,
-            'gwidth_ub': 1e3,
+            'locs_bounds_frac':30.0,
+            'gwidth_lb': 1e-2,
+            'gwidth_ub': 1e4,
             }
 
         V_opt, gwidth_opt, info = gof.GaussFSSD.optimize_locs_widths(p, tr,
@@ -147,6 +148,25 @@ def job_lin_kstein_med(p, data_source, tr, te, r):
         lin_kstein = gof.LinearKernelSteinTest(p, k, alpha=alpha, seed=r)
         lin_kstein_result = lin_kstein.perform_test(data)
     return { 'test_result': lin_kstein_result, 'time_secs': t.secs}
+
+def job_mmd_med(p, data_source, tr, te, r):
+    """
+    MMD test of Gretton et al., 2012 used as a goodness-of-fit test.
+    Require the ability to sample from p i.e., the UnnormalizedDensity p has 
+    to be able to return a non-None from get_datasource()
+    """
+    # full data
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        med = util.meddistance(X, subsample=1000)
+        k = kernel.KGauss(med**2)
+
+        mmd_test = mgof.QuadMMDGof(p, k, n_permute=200, alpha=alpha, seed=r)
+        mmd_result = mmd_test.perform_test(data)
+    return { 'test_result': mmd_result, 'time_secs': t.secs}
+
 
 # Define our custom Job, which inherits from base class IndependentJob
 class Ex1Job(IndependentJob):
@@ -206,6 +226,7 @@ from kgof.ex.ex1_vary_n import job_fssdJ1q_opt
 from kgof.ex.ex1_vary_n import job_fssdJ5q_opt
 from kgof.ex.ex1_vary_n import job_kstein_med
 from kgof.ex.ex1_vary_n import job_lin_kstein_med
+from kgof.ex.ex1_vary_n import job_mmd_med
 
 
 #--- experimental setting -----
@@ -215,10 +236,10 @@ ex = 1
 alpha = 0.05
 
 # Proportion of training sample relative to the full sample size n
-tr_proportion = 0.8
+tr_proportion = 0.2
 
 # repetitions for each sample size 
-reps = 30
+reps = 200
 
 # tests to try
 method_job_funcs = [ 
@@ -226,6 +247,7 @@ method_job_funcs = [
         job_fssdJ5q_opt, 
         job_kstein_med,
         job_lin_kstein_med,
+        job_mmd_med,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -267,7 +289,7 @@ def get_ns_pqsource(prob_label):
     - ds: a DataSource, each corresponding to one parameter setting.
         The DataSource generates sample from q.
     """
-    gmd_p01_d10_ns = [1000, 3000, 5000, 7000]
+    gmd_p01_d10_ns = [1000, 3000, 5000]
 
     #gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
     prob2tuples = { 
@@ -287,7 +309,7 @@ def get_ns_pqsource(prob_label):
             # Gaussian Bernoulli RBM. dx=20, dh=10 
             # Perturbation variance to B[0, 0] is 0.1
             'gbrbm_dx20_dh10_vp1': 
-                ([i*1000 for i in range(1, 5+1)], ) + 
+                ([i*1000 for i in range(2, 5+1)], ) + 
                 gbrbm_perturb(var_perturb_B=0.1, dx=20, dh=10), 
 
             # Gaussian Bernoulli RBM. dx=10, dh=5 
@@ -319,6 +341,7 @@ def run_problem(prob_label):
 
     # Use the following line if Slurm queue is not used.
     #engine = SerialComputationEngine()
+    #engine = SlurmComputationEngine(batch_parameters, partition='wrkstn,compute')
     engine = SlurmComputationEngine(batch_parameters)
     n_methods = len(method_job_funcs)
     # repetitions x len(ns) x #methods

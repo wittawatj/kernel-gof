@@ -12,21 +12,23 @@ def get_func_tuples():
         (func_name used in the experiments, label name, plot line style)
     """
     func_tuples = [
-            ('job_fssdJ1q_med', 'FSSDq-med J1', 'r--s'),
-            ('job_fssdJ5q_med', 'FSSDq-med J5', 'r--s'),
-            ('job_fssdq_med', 'FSSDq-med', 'r--s'),
+            ('job_fssdJ1q_med', 'FSSD-rand J1', 'r--*'),
+            ('job_fssdJ5q_med', 'FSSD-rand J5', 'r--*'),
+            ('job_fssdq_med', 'FSSD-rand', 'r--*'),
 
-            ('job_fssdJ1q_opt', 'FSSDq-opt J1', 'r-s'),
-            ('job_fssdq_opt', 'FSSDq-opt', 'r-s'),
-            ('job_fssdJ5q_opt', 'FSSDq-opt J5', 'r-s'),
-            ('job_fssdJ5p_opt', 'FSSDp-opt J5', 'm-s'),
+            ('job_fssdJ1q_opt', 'FSSD-opt J1', 'r-s'),
+            ('job_fssdq_opt', 'FSSD-opt', 'r-s'),
+            ('job_fssdJ5q_opt', 'FSSD-opt J5', 'r-s'),
+            ('job_fssdJ5p_opt', 'FSSD-opt J5', 'm-s'),
             ('job_fssdp_opt', 'FSSDp-opt', 'm-s'),
             ('job_fssdJ10p_opt', 'FSSDp-opt J10', 'k-s'),
 
-            ('job_fssdJ1q_opt2', 'FSSDq-opt2 J1', 'b-^'),
-            ('job_fssdJ5q_opt2', 'FSSDq-opt2 J5', 'r-^'),
-            ('job_kstein_med', 'KStein', 'g-*'),
-            ('job_lin_kstein_med', 'L-KStein', 'g--o'),
+            ('job_fssdJ1q_opt2', 'FSSD-opt2 J1', 'b-^'),
+            ('job_fssdJ5q_opt2', 'FSSD-opt2 J5', 'r-^'),
+
+            ('job_kstein_med', 'KStein', 'g-o'),
+            ('job_lin_kstein_med', 'L-KStein', 'g--*'),
+            ('job_mmd_med', 'MMD', 'm-^'),
             ]
     return func_tuples
 

@@ -9,6 +9,6 @@ screen -AdmS ex1_kgof -t tab0 bash
 
 #screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx10_dh5_vp1"
 screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx20_dh10_vp1"
-screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx50_dh10_vp1"
+#screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx50_dh10_vp1"
 
 

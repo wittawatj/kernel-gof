@@ -14,6 +14,6 @@ screen -AdmS ex3_kgof -t tab0 bash
 #screen -S ex3_kgof -X screen -t tab3 bash -lic "python ex3_vary_nlocs.py gbrbm_dx5_dh3_v5em3"
 
 
-#screen -S ex3_kgof -X screen -t tab2 bash -lic "python ex3_vary_nlocs.py sg5"
-#screen -S ex3_kgof -X screen -t tab3 bash -lic "python ex3_vary_nlocs.py gvd5"
+screen -S ex3_kgof -X screen -t tab2 bash -lic "python ex3_vary_nlocs.py sg5"
+screen -S ex3_kgof -X screen -t tab3 bash -lic "python ex3_vary_nlocs.py gvd5"
 screen -S ex3_kgof -X screen -t tab3 bash -lic "python ex3_vary_nlocs.py g_vs_gmm_d1"
