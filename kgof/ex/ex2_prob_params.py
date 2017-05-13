@@ -8,6 +8,7 @@ import kgof.data as data
 import kgof.glo as glo
 import kgof.density as density
 import kgof.goftest as gof
+import kgof.mmd as mgof
 import kgof.util as util 
 import kgof.kernel as kernel 
 
@@ -57,8 +58,8 @@ def job_fssdJ1q_med(p, data_source, tr, te, r, J=1, null_sim=None):
     with util.ContextTimer() as t:
         # median heuristic 
         med = util.meddistance(X, subsample=1000)
-        k = kernel.KGauss(med**2)
-        V = util.fit_gaussian_draw(X, J, seed=r+1)
+        k = kernel.KGauss(2*med**2)
+        V = util.fit_gaussian_draw(X, J, seed=r+3)
 
         fssd_med = gof.FSSD(p, k, V, null_sim=null_sim, alpha=alpha)
         fssd_med_result = fssd_med.perform_test(data)
@@ -102,7 +103,7 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
             'tol_fun': 1e-4,
             'disp': True,
             'locs_bounds_frac':10.0,
-            'gwidth_lb': 1e-1,
+            'gwidth_lb': 2e-1,
             'gwidth_ub': 1e3,
             }
 
@@ -118,6 +119,9 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
 
 def job_fssdJ5q_opt(p, data_source, tr, te, r):
     return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5)
+
+def job_fssdJ10q_opt(p, data_source, tr, te, r):
+    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=10)
 
 def job_fssdJ5p_opt(p, data_source, tr, te, r):
     """
@@ -169,6 +173,59 @@ def job_lin_kstein_med(p, data_source, tr, te, r):
         lin_kstein_result = lin_kstein.perform_test(data)
     return { 'test_result': lin_kstein_result, 'time_secs': t.secs}
 
+def job_mmd_med(p, data_source, tr, te, r):
+    """
+    MMD test of Gretton et al., 2012 used as a goodness-of-fit test.
+    Require the ability to sample from p i.e., the UnnormalizedDensity p has 
+    to be able to return a non-None from get_datasource()
+    """
+    # full data
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        pds = p.get_datasource()
+        datY = pds.sample(data.sample_size(), seed=r+294)
+        Y = datY.data()
+        XY = np.vstack((X, Y))
+
+        med = util.meddistance(XY, subsample=1000)
+        k = kernel.KGauss(med**2)
+
+        mmd_test = mgof.QuadMMDGof(p, k, n_permute=400, alpha=alpha, seed=r)
+        mmd_result = mmd_test.perform_test(data)
+    return { 'test_result': mmd_result, 'time_secs': t.secs}
+
+def job_mmd_opt(p, data_source, tr, te, r):
+    """
+    MMD test of Gretton et al., 2012 used as a goodness-of-fit test.
+    Require the ability to sample from p i.e., the UnnormalizedDensity p has 
+    to be able to return a non-None from get_datasource()
+
+    With optimization. Gaussian kernel.
+    """
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        pds = p.get_datasource()
+        datY = pds.sample(data.sample_size(), seed=r+294)
+        Y = datY.data()
+        XY = np.vstack((X, Y))
+
+        med = util.meddistance(XY, subsample=1000)
+
+        # Construct a list of kernels to try based on multiples of the median
+        # heuristic
+        list_gwidth = np.hstack( ( (med**2) *(2.0**np.linspace(-4, 4, 30) ) ) )
+        list_gwidth.sort()
+        candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
+
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=400, alpha=alpha, seed=r)
+        mmd_result = mmd_opt.perform_test(data,
+                candidate_kernels=candidate_kernels,
+                tr_proportion=tr_proportion)
+    return { 'test_result': mmd_result, 'time_secs': t.secs}
 
 # Define our custom Job, which inherits from base class IndependentJob
 class Ex2Job(IndependentJob):
@@ -231,10 +288,13 @@ from kgof.ex.ex2_prob_params import job_fssdJ1q_med
 from kgof.ex.ex2_prob_params import job_fssdJ5q_med
 from kgof.ex.ex2_prob_params import job_fssdJ1q_opt
 from kgof.ex.ex2_prob_params import job_fssdJ5q_opt
+from kgof.ex.ex2_prob_params import job_fssdJ10q_opt
 from kgof.ex.ex2_prob_params import job_fssdJ5p_opt
 from kgof.ex.ex2_prob_params import job_fssdJ10p_opt
 from kgof.ex.ex2_prob_params import job_kstein_med
 from kgof.ex.ex2_prob_params import job_lin_kstein_med
+from kgof.ex.ex2_prob_params import job_mmd_med
+from kgof.ex.ex2_prob_params import job_mmd_opt
 
 #--- experimental setting -----
 ex = 2
@@ -244,19 +304,24 @@ sample_size = 1000
 
 # number of test locations / test frequencies J
 alpha = 0.05
-tr_proportion = 0.5
+
+# training proportion of the FSSD test, MMD-opt test
+tr_proportion = 0.2
 # repetitions for each parameter setting
-reps = 50
+reps = 300
 
 method_job_funcs = [ 
         #job_fssdJ1q_med, 
         job_fssdJ5q_med, 
         #job_fssdJ1q_opt, 
         job_fssdJ5q_opt,
+        job_fssdJ10q_opt,
         #job_fssdJ5p_opt,
         #job_fssdJ10p_opt,
         job_kstein_med, 
         job_lin_kstein_med,
+        job_mmd_med,
+        job_mmd_opt,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -282,8 +347,11 @@ def gaussbern_rbm_probs(vars_perturb_B, dx=50, dh=10, n=sample_size):
             c = np.random.randn(dh)
             p = density.GaussBernRBM(B, b, c)
 
-            B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
-            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=50)
+            if np.sqrt(var) <= 1e-8:
+                B_perturb = B
+            else:
+                B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
+            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=300)
 
             probs.append((var, p, gb_rbm))
     return probs
@@ -308,7 +376,8 @@ def get_pqsource_list(prob_label):
     gvsub1_d1_vs = [0.1, 0.3, 0.5, 0.7]
     gvd_ds = [1, 5, 10, 15]
 
-    gb_rbm_dx50_dh10_vars = [0, 1e-3, 2e-3, 3e-3]
+    gb_rbm_dx50_dh10_vars = list(np.linspace(0, 1e-3, 4))
+    #gb_rbm_dx50_dh10_vars = [0.0]
     glaplace_ds = [1, 5, 10, 15]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)

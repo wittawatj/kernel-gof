@@ -160,13 +160,48 @@ def job_mmd_med(p, data_source, tr, te, r):
     X = data.data()
     with util.ContextTimer() as t:
         # median heuristic 
-        med = util.meddistance(X, subsample=1000)
+        pds = p.get_datasource()
+        datY = pds.sample(data.sample_size(), seed=r+294)
+        Y = datY.data()
+        XY = np.vstack((X, Y))
+
+        med = util.meddistance(XY, subsample=1000)
         k = kernel.KGauss(med**2)
 
-        mmd_test = mgof.QuadMMDGof(p, k, n_permute=200, alpha=alpha, seed=r)
+        mmd_test = mgof.QuadMMDGof(p, k, n_permute=400, alpha=alpha, seed=r)
         mmd_result = mmd_test.perform_test(data)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
+def job_mmd_opt(p, data_source, tr, te, r):
+    """
+    MMD test of Gretton et al., 2012 used as a goodness-of-fit test.
+    Require the ability to sample from p i.e., the UnnormalizedDensity p has 
+    to be able to return a non-None from get_datasource()
+
+    With optimization. Gaussian kernel.
+    """
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        pds = p.get_datasource()
+        datY = pds.sample(data.sample_size(), seed=r+294)
+        Y = datY.data()
+        XY = np.vstack((X, Y))
+
+        med = util.meddistance(XY, subsample=1000)
+
+        # Construct a list of kernels to try based on multiples of the median
+        # heuristic
+        list_gwidth = np.hstack( ( (med**2) *(2.0**np.linspace(-4, 4, 30) ) ) )
+        list_gwidth.sort()
+        candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
+
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=400, alpha=alpha, seed=r)
+        mmd_result = mmd_opt.perform_test(data,
+                candidate_kernels=candidate_kernels,
+                tr_proportion=tr_proportion)
+    return { 'test_result': mmd_result, 'time_secs': t.secs}
 
 # Define our custom Job, which inherits from base class IndependentJob
 class Ex1Job(IndependentJob):
@@ -227,6 +262,7 @@ from kgof.ex.ex1_vary_n import job_fssdJ5q_opt
 from kgof.ex.ex1_vary_n import job_kstein_med
 from kgof.ex.ex1_vary_n import job_lin_kstein_med
 from kgof.ex.ex1_vary_n import job_mmd_med
+from kgof.ex.ex1_vary_n import job_mmd_opt
 
 
 #--- experimental setting -----
@@ -239,7 +275,7 @@ alpha = 0.05
 tr_proportion = 0.2
 
 # repetitions for each sample size 
-reps = 200
+reps = 300
 
 # tests to try
 method_job_funcs = [ 
@@ -248,6 +284,7 @@ method_job_funcs = [
         job_kstein_med,
         job_lin_kstein_med,
         job_mmd_med,
+        job_mmd_opt,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -276,7 +313,7 @@ def gbrbm_perturb(var_perturb_B, dx=50, dh=10):
         B_perturb = np.copy(B)
         B_perturb[0, 0] = B_perturb[0, 0] + \
             np.random.randn(1)*np.sqrt(var_perturb_B)
-        ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=50)
+        ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=300)
 
     return p, ds
 

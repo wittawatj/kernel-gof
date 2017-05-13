@@ -3,8 +3,30 @@
 __author__ = 'wittawat'
 
 import kgof.glo as glo
+import matplotlib
 import matplotlib.pyplot as plt
 import autograd.numpy as np
+
+def set_default_matplotlib_options():
+    # font options
+    font = {
+    #     'family' : 'normal',
+        #'weight' : 'bold',
+        'size'   : 30
+    }
+    matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+
+
+    # matplotlib.use('cairo')
+    matplotlib.rc('text', usetex=True)
+    matplotlib.rcParams['text.usetex'] = True
+    plt.rc('font', **font)
+    plt.rc('lines', linewidth=3, markersize=10)
+    # matplotlib.rcParams['ps.useafm'] = True
+    # matplotlib.rcParams['pdf.use14corefonts'] = True
+
+    matplotlib.rcParams['pdf.fonttype'] = 42
+    matplotlib.rcParams['ps.fonttype'] = 42
 
 def get_func_tuples():
     """
@@ -12,13 +34,13 @@ def get_func_tuples():
         (func_name used in the experiments, label name, plot line style)
     """
     func_tuples = [
-            ('job_fssdJ1q_med', 'FSSD-rand J1', 'r--*'),
-            ('job_fssdJ5q_med', 'FSSD-rand J5', 'r--*'),
-            ('job_fssdq_med', 'FSSD-rand', 'r--*'),
+            ('job_fssdJ1q_med', 'FSSD-rand J1', 'r--^'),
+            ('job_fssdJ5q_med', 'FSSD-rand', 'r--^'),
+            ('job_fssdq_med', 'FSSD-rand', 'r--^'),
 
             ('job_fssdJ1q_opt', 'FSSD-opt J1', 'r-s'),
             ('job_fssdq_opt', 'FSSD-opt', 'r-s'),
-            ('job_fssdJ5q_opt', 'FSSD-opt J5', 'r-s'),
+            ('job_fssdJ5q_opt', 'FSSD-opt', 'r-s'),
             ('job_fssdJ5p_opt', 'FSSD-opt J5', 'm-s'),
             ('job_fssdp_opt', 'FSSDp-opt', 'm-s'),
             ('job_fssdJ10p_opt', 'FSSDp-opt J10', 'k-s'),
@@ -27,7 +49,7 @@ def get_func_tuples():
             ('job_fssdJ5q_opt2', 'FSSD-opt2 J5', 'r-^'),
 
             ('job_kstein_med', 'KStein', 'g-o'),
-            ('job_lin_kstein_med', 'L-KStein', 'g--*'),
+            ('job_lin_kstein_med', 'L-KStein', 'g-.h'),
             ('job_mmd_med', 'MMD', 'm-^'),
             ]
     return func_tuples

@@ -184,19 +184,19 @@ from kgof.ex.ex3_vary_nlocs import job_fssdp_opt
 ex = 3
 
 # sample size = n (the training and test sizes are n/2)
-sample_size = 800
+sample_size = 500
 
 # number of test locations / test frequencies J
 alpha = 0.05
 tr_proportion = 0.5
 # repetitions for each parameter setting
-reps = 50
+reps = 200
 
 # list of number of test locations/frequencies
 #Js = [5, 10, 15, 20, 25]
 #Js = range(2, 6+1)
 #Js = [2**x for x in range(5)]
-Js = [2, 8, 32, 96, 384, 512]
+Js = [2, 8, 32, 96, 384 ]
 #Js = [2, 8, 32]
 
 method_job_funcs = [ job_fssdq_med, job_fssdq_opt, 
