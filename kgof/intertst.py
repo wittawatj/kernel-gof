@@ -1,7 +1,10 @@
 """
-Module containing two-sample tests disguised as goodness-of-fit tests.
-Many of these require the ability to sample from the specified density.
-This module depends on external packages.
+Module containing the two-sample tests of Jitkrittum et al., 2016 (NIPS 2016)
+disguised as goodness-of-fit tests. Require the ability to
+sample from the specified density. This module depends on external packages.
+
+freqopttest https://github.com/wittawatj/interpretable-test
+
 """
 
 __author__ = 'wittawat'

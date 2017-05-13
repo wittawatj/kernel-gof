@@ -17,7 +17,7 @@ Linear-time kernel goodness-of-fit test
   is R^d (not even a bounded subset). This is due to the vanishing-boundary
   condition required to construct the Stein operator.
 
-* Part of this repository depends on the linear-time two-sample test of
+* The sub-module `kgof.intertst` depends on the linear-time two-sample test of
   Jitkrittum et al., 2016 (NIPS 2016). The code (`freqopttest` Python package)
   can be found [here](https://github.com/wittawatj/interpretable-test).
 
