@@ -58,7 +58,7 @@ def job_fssdJ1q_med(p, data_source, tr, te, r, J=1, null_sim=None):
     with util.ContextTimer() as t:
         # median heuristic 
         med = util.meddistance(X, subsample=1000)
-        k = kernel.KGauss(2*med**2)
+        k = kernel.KGauss(med**2)
         V = util.fit_gaussian_draw(X, J, seed=r+3)
 
         fssd_med = gof.FSSD(p, k, V, null_sim=null_sim, alpha=alpha)
@@ -192,7 +192,7 @@ def job_mmd_med(p, data_source, tr, te, r):
         med = util.meddistance(XY, subsample=1000)
         k = kernel.KGauss(med**2)
 
-        mmd_test = mgof.QuadMMDGof(p, k, n_permute=400, alpha=alpha, seed=r)
+        mmd_test = mgof.QuadMMDGof(p, k, n_permute=500, alpha=alpha, seed=r)
         mmd_result = mmd_test.perform_test(data)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
@@ -221,10 +221,10 @@ def job_mmd_opt(p, data_source, tr, te, r):
         list_gwidth.sort()
         candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
 
-        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=400, alpha=alpha, seed=r)
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=500, alpha=alpha, seed=r)
         mmd_result = mmd_opt.perform_test(data,
                 candidate_kernels=candidate_kernels,
-                tr_proportion=tr_proportion)
+                tr_proportion=tr_proportion, reg=1e-3)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
 # Define our custom Job, which inherits from base class IndependentJob
@@ -275,7 +275,7 @@ class Ex2Job(IndependentJob):
             prob_label, r, prob_param, t.secs))
 
         # save result
-        fname = '%s-%s-n%d_r%d_p%.3f_a%.3f_trp%.2f.p' \
+        fname = '%s-%s-n%d_r%d_p%g_a%.3f_trp%.2f.p' \
                 %(prob_label, func_name, sample_size, r, prob_param, alpha,
                         tr_proportion)
         glo.ex_save_result(ex, job_result, prob_label, fname)
@@ -308,7 +308,7 @@ alpha = 0.05
 # training proportion of the FSSD test, MMD-opt test
 tr_proportion = 0.2
 # repetitions for each parameter setting
-reps = 300
+reps = 100
 
 method_job_funcs = [ 
         #job_fssdJ1q_med, 
@@ -329,31 +329,31 @@ method_job_funcs = [
 is_rerun = False
 #---------------------------
 
-def gaussbern_rbm_probs(vars_perturb_B, dx=50, dh=10, n=sample_size):
+def gaussbern_rbm_probs(stds_perturb_B, dx=50, dh=10, n=sample_size):
     """
     Get a sequence of Gaussian-Bernoulli RBM problems.
     We follow the parameter settings as described in section 6 of Liu et al.,
     2016.
 
-    - vars_perturb_B: a list of Gaussian noise variances for perturbing B.
+    - stds_perturb_B: a list of Gaussian noise standard deviations for perturbing B.
     - dx: observed dimension
     - dh: latent dimension
     """
     probs = []
-    for i, var in enumerate(vars_perturb_B):
+    for i, std in enumerate(stds_perturb_B):
         with util.NumpySeedContext(seed=i+1000):
             B = np.random.randint(0, 2, (dx, dh))*2 - 1.0
             b = np.random.randn(dx)
             c = np.random.randn(dh)
             p = density.GaussBernRBM(B, b, c)
 
-            if np.sqrt(var) <= 1e-8:
+            if std <= 1e-8:
                 B_perturb = B
             else:
-                B_perturb = B + np.random.randn(dx, dh)*np.sqrt(var)
-            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=300)
+                B_perturb = B + np.random.randn(dx, dh)*std
+            gb_rbm = data.DSGaussBernRBM(B_perturb, b, c, burnin=500)
 
-            probs.append((var, p, gb_rbm))
+            probs.append((std, p, gb_rbm))
     return probs
 
 def get_pqsource_list(prob_label):
@@ -376,8 +376,8 @@ def get_pqsource_list(prob_label):
     gvsub1_d1_vs = [0.1, 0.3, 0.5, 0.7]
     gvd_ds = [1, 5, 10, 15]
 
-    gb_rbm_dx50_dh10_vars = list(np.linspace(0, 1e-3, 4))
-    #gb_rbm_dx50_dh10_vars = [0.0]
+    #gb_rbm_dx50_dh10_stds = [0, 0.01, 0.02, 0.03]
+    gb_rbm_dx50_dh10_stds = [0]
     glaplace_ds = [1, 5, 10, 15]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
@@ -416,7 +416,7 @@ def get_pqsource_list(prob_label):
                 for d in gvd_ds],
 
             # Gaussian Bernoulli RBM. dx=50, dh=10 
-            'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_vars,
+            'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_stds,
                 dx=50, dh=10, n=sample_size),
 
             # p: N(0, I), q: standard Laplace. Vary d
@@ -454,6 +454,7 @@ def run_problem(prob_label):
     # Use the following line if Slurm queue is not used.
     #engine = SerialComputationEngine()
     engine = SlurmComputationEngine(batch_parameters)
+    #engine = SlurmComputationEngine(batch_parameters, partition='wrkstn,compute')
     n_methods = len(method_job_funcs)
     # repetitions x len(prob_params) x #methods
     aggregators = np.empty((reps, len(prob_params), n_methods ), dtype=object)
@@ -462,7 +463,7 @@ def run_problem(prob_label):
             for mi, f in enumerate(method_job_funcs):
                 # name used to save the result
                 func_name = f.__name__
-                fname = '%s-%s-n%d_r%d_p%.3f_a%.3f_trp%.2f.p' \
+                fname = '%s-%s-n%d_r%d_p%g_a%.3f_trp%.2f.p' \
                     %(prob_label, func_name, sample_size, r, param, alpha,
                             tr_proportion)
                 if not is_rerun and glo.ex_file_exists(ex, prob_label, fname):
@@ -517,7 +518,7 @@ def run_problem(prob_label):
             }
     
     # class name 
-    fname = 'ex%d-%s-me%d_n%d_rs%d_pmi%.3f_pma%.3f_a%.3f_trp%.2f.p' \
+    fname = 'ex%d-%s-me%d_n%d_rs%d_pmi%g_pma%g_a%.3f_trp%.2f.p' \
         %(ex, prob_label, n_methods, sample_size, reps, min(prob_params),
                 max(prob_params), alpha, tr_proportion)
 

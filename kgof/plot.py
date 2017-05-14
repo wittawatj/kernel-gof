@@ -41,6 +41,7 @@ def get_func_tuples():
             ('job_fssdJ1q_opt', 'FSSD-opt J1', 'r-s'),
             ('job_fssdq_opt', 'FSSD-opt', 'r-s'),
             ('job_fssdJ5q_opt', 'FSSD-opt', 'r-s'),
+            ('job_fssdJ10q_opt', 'FSSD-opt', 'k-s'),
             ('job_fssdJ5p_opt', 'FSSD-opt J5', 'm-s'),
             ('job_fssdp_opt', 'FSSDp-opt', 'm-s'),
             ('job_fssdJ10p_opt', 'FSSDp-opt J10', 'k-s'),
@@ -50,7 +51,8 @@ def get_func_tuples():
 
             ('job_kstein_med', 'KStein', 'g-o'),
             ('job_lin_kstein_med', 'L-KStein', 'g-.h'),
-            ('job_mmd_med', 'MMD', 'm-^'),
+            ('job_mmd_med', 'MMD', 'm--^'),
+            ('job_mmd_opt', 'MMD-opt', 'm-^'),
             ]
     return func_tuples
 

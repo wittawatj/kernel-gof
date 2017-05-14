@@ -82,7 +82,7 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
         gwidth_factors = 2.0**np.linspace(-3, 3, n_gwidth_cand) 
         med2 = util.meddistance(Xtr, 1000)**2
 
-        k = kernel.KGauss(med2*2)
+        k = kernel.KGauss(med2)
         # fit a Gaussian to the data and draw to initialize V0
         V0 = util.fit_gaussian_draw(Xtr, J, seed=r+1, reg=1e-6)
         list_gwidth = np.hstack( ( (med2)*gwidth_factors ) )
@@ -168,7 +168,7 @@ def job_mmd_med(p, data_source, tr, te, r):
         med = util.meddistance(XY, subsample=1000)
         k = kernel.KGauss(med**2)
 
-        mmd_test = mgof.QuadMMDGof(p, k, n_permute=400, alpha=alpha, seed=r)
+        mmd_test = mgof.QuadMMDGof(p, k, n_permute=500, alpha=alpha, seed=r)
         mmd_result = mmd_test.perform_test(data)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
@@ -197,10 +197,10 @@ def job_mmd_opt(p, data_source, tr, te, r):
         list_gwidth.sort()
         candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
 
-        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=400, alpha=alpha, seed=r)
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=500, alpha=alpha, seed=r)
         mmd_result = mmd_opt.perform_test(data,
                 candidate_kernels=candidate_kernels,
-                tr_proportion=tr_proportion)
+                tr_proportion=tr_proportion, reg=1e-3)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
 # Define our custom Job, which inherits from base class IndependentJob
@@ -313,7 +313,7 @@ def gbrbm_perturb(var_perturb_B, dx=50, dh=10):
         B_perturb = np.copy(B)
         B_perturb[0, 0] = B_perturb[0, 0] + \
             np.random.randn(1)*np.sqrt(var_perturb_B)
-        ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=300)
+        ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=500)
 
     return p, ds
 
