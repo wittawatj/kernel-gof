@@ -126,12 +126,13 @@ class QuadMMDGofOpt(gof.GofTest):
 
 
     def perform_test(self, dat, candidate_kernels=None, return_mmdtest=False,
-            tr_proportion=0.2):
+            tr_proportion=0.2, reg=1e-3):
         """
         dat: an instance of Data
         candidate_kernels: a list of Kernel's to choose from
         tr_proportion: proportion of sample to be used to choosing the best
             kernel
+        reg: regularization parameter for the test power criterion 
         """
         with util.ContextTimer() as t:
             seed = self.seed
@@ -158,7 +159,7 @@ class QuadMMDGofOpt(gof.GofTest):
 
             # grid search to choose the best Gaussian width
             besti, powers = tst.QuadMMDTest.grid_search_kernel(tr_tst_data,
-                    candidate_kernels, alpha)
+                    candidate_kernels, alpha, reg=reg)
             # perform test 
             best_ker = candidate_kernels[besti]
             mmdtest = tst.QuadMMDTest(best_ker, self.n_permute, alpha=alpha)
