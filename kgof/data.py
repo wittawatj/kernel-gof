@@ -51,7 +51,7 @@ class Data(object):
         """Return the data matrix."""
         return self.X
 
-    def split_tr_te(self, tr_proportion=0.5, seed=820):
+    def split_tr_te(self, tr_proportion=0.5, seed=820, return_tr_ind = False):
         """Split the dataset into training and test sets.         
 
         Return (Data for tr, Data for te)"""
@@ -60,14 +60,20 @@ class Data(object):
         Itr, Ite = util.tr_te_indices(nx, tr_proportion, seed)
         tr_data = Data(X[Itr, :])
         te_data = Data(X[Ite, :])
-        return (tr_data, te_data)
+        if return_tr_ind:
+            return (tr_data, te_data, Itr)
+        else:
+            return (tr_data, te_data)
 
-    def subsample(self, n, seed=87):
+    def subsample(self, n, seed=87, return_ind = False):
         """Subsample without replacement. Return a new Data. """
         if n > self.X.shape[0]:
             raise ValueError('n should not be larger than sizes of X')
         ind_x = util.subsample_ind( self.X.shape[0], n, seed )
-        return Data(self.X[ind_x, :])
+        if return_ind:
+            return Data(self.X[ind_x, :]), ind_x
+        else:
+            return Data(self.X[ind_x, :])
 
     def clone(self):
         """
@@ -695,11 +701,11 @@ class DSResample(DataSource):
         """
         self.X = X
 
-    def sample(self, n, seed=900):
+    def sample(self, n, seed=900, return_ind = False):
         X = self.X
         if n > X.shape[0]:
             # Sample more than what we have
             raise ValueError('Cannot subsample n={0} from only {1} points.'.format(n, X.shape[0]))
         dat = Data(self.X)
-        return dat.subsample(n, seed=seed)
+        return dat.subsample(n, seed=seed, return_ind = return_ind)
 
