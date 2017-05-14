@@ -7,26 +7,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import autograd.numpy as np
 
-def set_default_matplotlib_options():
-    # font options
-    font = {
-    #     'family' : 'normal',
-        #'weight' : 'bold',
-        'size'   : 30
-    }
-    matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
-
-
-    # matplotlib.use('cairo')
-    matplotlib.rc('text', usetex=True)
-    matplotlib.rcParams['text.usetex'] = True
-    plt.rc('font', **font)
-    plt.rc('lines', linewidth=3, markersize=10)
-    # matplotlib.rcParams['ps.useafm'] = True
-    # matplotlib.rcParams['pdf.use14corefonts'] = True
-
-    matplotlib.rcParams['pdf.fonttype'] = 42
-    matplotlib.rcParams['ps.fonttype'] = 42
 
 def get_func_tuples():
     """
@@ -49,12 +29,33 @@ def get_func_tuples():
             ('job_fssdJ1q_opt2', 'FSSD-opt2 J1', 'b-^'),
             ('job_fssdJ5q_opt2', 'FSSD-opt2 J5', 'r-^'),
 
-            ('job_kstein_med', 'KStein', 'g-o'),
-            ('job_lin_kstein_med', 'L-KStein', 'g-.h'),
+            ('job_kstein_med', 'KSD', 'g-o'),
+            ('job_lin_kstein_med', 'LKS', 'g-.h'),
             ('job_mmd_med', 'MMD', 'm--^'),
-            ('job_mmd_opt', 'MMD-opt', 'm-^'),
+            ('job_mmd_opt', 'MMD-opt', 'm-<'),
             ]
     return func_tuples
+
+def set_default_matplotlib_options():
+    # font options
+    font = {
+    #     'family' : 'normal',
+        #'weight' : 'bold',
+        'size'   : 30
+    }
+    matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+
+
+    # matplotlib.use('cairo')
+    matplotlib.rc('text', usetex=True)
+    matplotlib.rcParams['text.usetex'] = True
+    plt.rc('font', **font)
+    plt.rc('lines', linewidth=3, markersize=10)
+    # matplotlib.rcParams['ps.useafm'] = True
+    # matplotlib.rcParams['pdf.use14corefonts'] = True
+
+    matplotlib.rcParams['pdf.fonttype'] = 42
+    matplotlib.rcParams['ps.fonttype'] = 42
 
 def get_func2label_map():
     # map: job_func_name |-> plot label

@@ -5,6 +5,7 @@ import kgof.data as data
 import kgof.glo as glo
 import kgof.density as density
 import kgof.goftest as gof
+import kgof.intertst as tgof
 import kgof.mmd as mgof
 import kgof.util as util 
 import kgof.kernel as kernel 
@@ -98,7 +99,7 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
             'tol_fun': 1e-5,
             'disp': True,
             'locs_bounds_frac':30.0,
-            'gwidth_lb': 1e-2,
+            'gwidth_lb': 1e-1,
             'gwidth_ub': 1e4,
             }
 
@@ -114,6 +115,30 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
 
 def job_fssdJ5q_opt(p, data_source, tr, te, r):
     return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5)
+
+def job_me_opt(p, data_source, tr, te, r, J=5):
+    """
+    ME test of Jitkrittum et al., 2016 used as a goodness-of-fit test.
+    Gaussian kernel. Optimize test locations and Gaussian width.
+    """
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        #pds = p.get_datasource()
+        #datY = pds.sample(data.sample_size(), seed=r+294)
+        #Y = datY.data()
+        #XY = np.vstack((X, Y))
+        #med = util.meddistance(XY, subsample=1000)
+        op = {'n_test_locs': J, 'seed': r+5, 'max_iter': 200, 
+             'batch_proportion': 1.0, 'locs_step_size': 1.0, 
+              'gwidth_step_size': 0.1, 'tol_fun': 1e-4}
+        # optimize on the training set
+        me_opt = tgof.GaussMETestOpt(p, n_locs=J, tr_proportion=tr_proportion,
+                alpha=alpha, seed=r+111)
+
+        me_result = me_opt.perform_test(data, op)
+    return { 'test_result': me_result, 'time_secs': t.secs}
 
 def job_kstein_med(p, data_source, tr, te, r):
     """
@@ -165,8 +190,15 @@ def job_mmd_med(p, data_source, tr, te, r):
         Y = datY.data()
         XY = np.vstack((X, Y))
 
-        med = util.meddistance(XY, subsample=1000)
-        k = kernel.KGauss(med**2)
+        # If p, q differ very little, the median may be very small, rejecting H0
+        # when it should not?
+        # If p, q differ very little, the median may be very small, rejecting H0
+        # when it should not?
+        medx = util.meddistance(X, subsample=1000)
+        medy = util.meddistance(Y, subsample=1000)
+        medxy = util.meddistance(XY, subsample=1000)
+        med_avg = (medx+medy+medxy)/3.0
+        k = kernel.KGauss(med_avg**2)
 
         mmd_test = mgof.QuadMMDGof(p, k, n_permute=500, alpha=alpha, seed=r)
         mmd_result = mmd_test.perform_test(data)
@@ -202,6 +234,7 @@ def job_mmd_opt(p, data_source, tr, te, r):
                 candidate_kernels=candidate_kernels,
                 tr_proportion=tr_proportion, reg=1e-3)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
+
 
 # Define our custom Job, which inherits from base class IndependentJob
 class Ex1Job(IndependentJob):
@@ -259,6 +292,7 @@ from kgof.ex.ex1_vary_n import job_fssdJ1q_med
 from kgof.ex.ex1_vary_n import job_fssdJ5q_med
 from kgof.ex.ex1_vary_n import job_fssdJ1q_opt
 from kgof.ex.ex1_vary_n import job_fssdJ5q_opt
+from kgof.ex.ex1_vary_n import job_me_opt
 from kgof.ex.ex1_vary_n import job_kstein_med
 from kgof.ex.ex1_vary_n import job_lin_kstein_med
 from kgof.ex.ex1_vary_n import job_mmd_med
@@ -275,15 +309,16 @@ alpha = 0.05
 tr_proportion = 0.2
 
 # repetitions for each sample size 
-reps = 300
+reps = 200
 
 # tests to try
 method_job_funcs = [ 
         job_fssdJ5q_med, 
         job_fssdJ5q_opt, 
+        job_me_opt,
         job_kstein_med,
         job_lin_kstein_med,
-        job_mmd_med,
+        #job_mmd_med,
         job_mmd_opt,
        ]
 
@@ -311,8 +346,9 @@ def gbrbm_perturb(var_perturb_B, dx=50, dh=10):
         p = density.GaussBernRBM(B, b, c)
 
         B_perturb = np.copy(B)
-        B_perturb[0, 0] = B_perturb[0, 0] + \
-            np.random.randn(1)*np.sqrt(var_perturb_B)
+        if var_perturb_B > 1e-7:
+            B_perturb[0, 0] = B_perturb[0, 0] + \
+                np.random.randn(1)*np.sqrt(var_perturb_B)
         ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=500)
 
     return p, ds
@@ -348,6 +384,12 @@ def get_ns_pqsource(prob_label):
             'gbrbm_dx20_dh10_vp1': 
                 ([i*1000 for i in range(2, 5+1)], ) + 
                 gbrbm_perturb(var_perturb_B=0.1, dx=20, dh=10), 
+
+            # Gaussian Bernoulli RBM. dx=20, dh=10 
+            # No perturbation
+            'gbrbm_dx20_dh10_h0': 
+                ([i*1000 for i in range(2, 5+1)], ) + 
+                gbrbm_perturb(var_perturb_B=0, dx=20, dh=10), 
 
             # Gaussian Bernoulli RBM. dx=10, dh=5 
             # Perturbation variance to B[0, 0] is 0.1

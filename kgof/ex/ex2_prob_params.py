@@ -8,6 +8,7 @@ import kgof.data as data
 import kgof.glo as glo
 import kgof.density as density
 import kgof.goftest as gof
+import kgof.intertst as tgof
 import kgof.mmd as mgof
 import kgof.util as util 
 import kgof.kernel as kernel 
@@ -139,6 +140,30 @@ def job_fssdJ10p_opt(p, data_source, tr, te, r):
     null_sim = gof.FSSDH0SimCovDraw(n_draw=2000, n_simulate=2000, seed=r)
     return job_fssdJ1q_opt(p, data_source, tr, te, r, J=10, null_sim=null_sim)
 
+def job_me_opt(p, data_source, tr, te, r, J=5):
+    """
+    ME test of Jitkrittum et al., 2016 used as a goodness-of-fit test.
+    Gaussian kernel. Optimize test locations and Gaussian width.
+    """
+    data = tr + te
+    X = data.data()
+    with util.ContextTimer() as t:
+        # median heuristic 
+        #pds = p.get_datasource()
+        #datY = pds.sample(data.sample_size(), seed=r+294)
+        #Y = datY.data()
+        #XY = np.vstack((X, Y))
+        #med = util.meddistance(XY, subsample=1000)
+        op = {'n_test_locs': J, 'seed': r+5, 'max_iter': 200, 
+             'batch_proportion': 1.0, 'locs_step_size': 1.0, 
+              'gwidth_step_size': 0.1, 'tol_fun': 1e-4}
+        # optimize on the training set
+        me_opt = tgof.GaussMETestOpt(p, n_locs=J, tr_proportion=tr_proportion,
+                alpha=alpha, seed=r+111)
+
+        me_result = me_opt.perform_test(data, op)
+    return { 'test_result': me_result, 'time_secs': t.secs}
+
 def job_kstein_med(p, data_source, tr, te, r):
     """
     Kernel Stein discrepancy test of Liu et al., 2016 and Chwialkowski et al.,
@@ -189,8 +214,13 @@ def job_mmd_med(p, data_source, tr, te, r):
         Y = datY.data()
         XY = np.vstack((X, Y))
 
-        med = util.meddistance(XY, subsample=1000)
-        k = kernel.KGauss(med**2)
+        # If p, q differ very little, the median may be very small, rejecting H0
+        # when it should not?
+        medx = util.meddistance(X, subsample=1000)
+        medy = util.meddistance(Y, subsample=1000)
+        medxy = util.meddistance(XY, subsample=1000)
+        med_avg = (medx+medy+medxy)/3.0
+        k = kernel.KGauss(med_avg**2)
 
         mmd_test = mgof.QuadMMDGof(p, k, n_permute=500, alpha=alpha, seed=r)
         mmd_result = mmd_test.perform_test(data)
@@ -291,6 +321,7 @@ from kgof.ex.ex2_prob_params import job_fssdJ5q_opt
 from kgof.ex.ex2_prob_params import job_fssdJ10q_opt
 from kgof.ex.ex2_prob_params import job_fssdJ5p_opt
 from kgof.ex.ex2_prob_params import job_fssdJ10p_opt
+from kgof.ex.ex2_prob_params import job_me_opt
 from kgof.ex.ex2_prob_params import job_kstein_med
 from kgof.ex.ex2_prob_params import job_lin_kstein_med
 from kgof.ex.ex2_prob_params import job_mmd_med
@@ -308,19 +339,20 @@ alpha = 0.05
 # training proportion of the FSSD test, MMD-opt test
 tr_proportion = 0.2
 # repetitions for each parameter setting
-reps = 100
+reps = 200
 
 method_job_funcs = [ 
         #job_fssdJ1q_med, 
         job_fssdJ5q_med, 
         #job_fssdJ1q_opt, 
         job_fssdJ5q_opt,
-        job_fssdJ10q_opt,
+        #job_fssdJ10q_opt,
         #job_fssdJ5p_opt,
         #job_fssdJ10p_opt,
+        job_me_opt,
         job_kstein_med, 
         job_lin_kstein_med,
-        job_mmd_med,
+        #job_mmd_med,
         job_mmd_opt,
        ]
 
@@ -376,8 +408,8 @@ def get_pqsource_list(prob_label):
     gvsub1_d1_vs = [0.1, 0.3, 0.5, 0.7]
     gvd_ds = [1, 5, 10, 15]
 
-    #gb_rbm_dx50_dh10_stds = [0, 0.01, 0.02, 0.03]
-    gb_rbm_dx50_dh10_stds = [0]
+    gb_rbm_dx50_dh10_stds = [0, 0.01, 0.02, 0.03]
+    #gb_rbm_dx50_dh10_stds = [0]
     glaplace_ds = [1, 5, 10, 15]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
