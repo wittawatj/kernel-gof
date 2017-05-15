@@ -138,6 +138,37 @@ class DifferentiableKernel(Kernel):
 
 # end class KSTKernel
 
+class KDiagGauss(Kernel):
+    """
+    A Gaussian kernel with diagonal covariance structure i.e., one Gaussian 
+    width for each dimension.
+    """
+    def __init__(self, sigma2s):
+        """
+        sigma2s: a one-dimensional array of length d containing one width
+            squared for each of the d dimensions.
+        """
+        self.sigma2s = sigma2s
+
+    def eval(self, X, Y):
+        """
+        Equivalent to dividing each dimension with the corresponding width (not
+        width^2) and using the standard Gaussian kernel.
+        """
+        sigma2s = self.sigma2s
+        Xs = X/np.sqrt(sigma2s)
+        Ys = Y/np.sqrt(sigma2s)
+        k = KGauss(1.0)
+        return k.eval(Xs, Ys)
+
+    def pair_eval(self, X, Y):
+        """Evaluate k(x1, y1), k(x2, y2), ..."""
+        sigma2s = self.sigma2s
+        Xs = X/np.sqrt(sigma2s)
+        Ys = Y/np.sqrt(sigma2s)
+        k = KGauss(1.0)
+        return k.pair_eval(Xs, Ys)
+
 
 class KGauss(DifferentiableKernel, KSTKernel):
 
