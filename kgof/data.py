@@ -264,7 +264,7 @@ class DSGaussBernRBM(DataSource):
         according to h ~ Discrete(sigmoid(2c)).
     - Draw x | h ~ N(B*h+b, I)
     """
-    def __init__(self, B, b, c, burnin=50):
+    def __init__(self, B, b, c, burnin=2000):
         """
         B: a dx x dh matrix 
         b: a numpy array of length dx
@@ -300,15 +300,15 @@ class DSGaussBernRBM(DataSource):
         b = self.b
 
         # Draw H.
-        XBC = np.dot(X, self.B) + self.c
+        XB2C = np.dot(X, self.B) + 2.0*self.c
         # Ph: n x dh matrix
-        Ph = DSGaussBernRBM.sigmoid(2*XBC)
+        Ph = DSGaussBernRBM.sigmoid(XB2C)
         # H: n x dh
         H = (np.random.rand(n, dh) <= Ph)*2 - 1.0
         assert np.all(np.abs(H) - 1 <= 1e-6 )
         # Draw X.
         # mean: n x dx
-        mean = np.dot(H, B.T) + b
+        mean = np.dot(H, B.T)/2.0 + b
         X = np.random.randn(n, dx) + mean
         return X, H
 

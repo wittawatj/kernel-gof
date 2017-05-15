@@ -236,30 +236,30 @@ class GaussBernRBM(UnnormalizedDensity):
         b = self.b
         c = self.c
 
-        XBC = np.dot(X, B) + c
+        XBC = 0.5*np.dot(X, B) + c
         unden = np.dot(X, b) - 0.5*np.sum(X**2, 1) + np.sum(np.log(np.exp(XBC)
             + np.exp(-XBC)), 1)
         assert len(unden) == X.shape[0]
         return unden
 
-    def grad_log(self, X):
-        """
-        Evaluate the gradients (with respect to the input) of the log density at
-        each of the n points in X. This is the score function.
+    #def grad_log(self, X):
+    #    """
+    #    Evaluate the gradients (with respect to the input) of the log density at
+    #    each of the n points in X. This is the score function.
 
-        X: n x d numpy array.
+    #    X: n x d numpy array.
 
-        Return an n x d numpy array of gradients.
-        """
-        XB = np.dot(X, self.B)
-        Y = XB + self.c
-        E2y = np.exp(2*Y)
-        # n x dh
-        Phi = (E2y-1.0)/(E2y+1)
-        # n x dx
-        T = np.dot(Phi, self.B.T)
-        S = self.b - X + T
-        return S
+    #    Return an n x d numpy array of gradients.
+    #    """
+    #    XB = np.dot(X, self.B)
+    #    Y = XB + self.c
+    #    E2y = np.exp(2*Y)
+    #    # n x dh
+    #    Phi = (E2y-1.0)/(E2y+1)
+    #    # n x dx
+    #    T = np.dot(Phi, self.B.T)
+    #    S = self.b - X + T
+    #    return S
 
     def get_datasource(self):
         return data.DSGaussBernRBM(self.B, self.b, self.c)

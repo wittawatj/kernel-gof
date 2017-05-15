@@ -34,6 +34,7 @@ def get_func_tuples():
             ('job_lin_kstein_med', 'LKS', 'g-.h'),
             ('job_mmd_med', 'MMD', 'm--^'),
             ('job_mmd_opt', 'MMD-opt', 'm-<'),
+            ('job_mmd_dgauss_opt', 'MMD-dopt', 'y-<'),
             ]
     return func_tuples
 

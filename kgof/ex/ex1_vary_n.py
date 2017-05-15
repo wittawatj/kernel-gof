@@ -133,7 +133,7 @@ def job_me_opt(p, data_source, tr, te, r, J=5):
         op = {'n_test_locs': J, 'seed': r+5, 'max_iter': 40, 
              'batch_proportion': 1.0, 'locs_step_size': 1.0, 
               'gwidth_step_size': 0.1, 'tol_fun': 1e-4, 
-              'reg': 1e-3}
+              'reg': 1e-4}
         # optimize on the training set
         me_opt = tgof.GaussMETestOpt(p, n_locs=J, tr_proportion=tr_proportion,
                 alpha=alpha, seed=r+111)
@@ -222,22 +222,60 @@ def job_mmd_opt(p, data_source, tr, te, r):
         Y = datY.data()
         XY = np.vstack((X, Y))
 
-        medx = util.meddistance(X, subsample=1000)
         med = util.meddistance(XY, subsample=1000)
 
         # Construct a list of kernels to try based on multiples of the median
         # heuristic
-        list_gwidth = np.hstack( (np.linspace(0.1, 40, 10), [2*medx**2], (med**2)
-           *(2.0**np.linspace(-3, 3, 20) ) ) )
+        #list_gwidth = np.hstack( (np.linspace(20, 40, 10), (med**2)
+        #    *(2.0**np.linspace(-2, 2, 20) ) ) )
+        list_gwidth = (med**2)*(2.0**np.linspace(-3, 3, 30) ) 
         list_gwidth.sort()
         candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
 
-        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=400, alpha=alpha, seed=r)
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=300, alpha=alpha, seed=r)
         mmd_result = mmd_opt.perform_test(data,
                 candidate_kernels=candidate_kernels,
                 tr_proportion=tr_proportion, reg=1e-3)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
+def job_mmd_dgauss_opt(p, data_source, tr, te, r):
+    """
+    MMD test of Gretton et al., 2012 used as a goodness-of-fit test.
+    Require the ability to sample from p i.e., the UnnormalizedDensity p has 
+    to be able to return a non-None from get_datasource()
+
+    With optimization. Diagonal Gaussian kernel where there is one Gaussian width
+    for each dimension.
+    """
+    data = tr + te
+    X = data.data()
+    d = X.shape[1]
+    with util.ContextTimer() as t:
+        # median heuristic 
+        pds = p.get_datasource()
+        datY = pds.sample(data.sample_size(), seed=r+294)
+        Y = datY.data()
+        XY = np.vstack((X, Y))
+
+        # Get the median heuristic for each dimension
+        meds = np.zeros(d)
+        for i in range(d):
+            medi = util.meddistance(XY[:, [i]], subsample=1000)
+            meds[i] = medi
+
+        # Construct a list of kernels to try based on multiples of the median
+        # heuristic
+        med_factors = 2.0**np.linspace(-4, 4, 20)  
+        candidate_kernels = []
+        for i in range(len(med_factors)):
+            ki = kernel.KDiagGauss( (meds**2)*med_factors[i] )
+            candidate_kernels.append(ki)
+
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=300, alpha=alpha, seed=r)
+        mmd_result = mmd_opt.perform_test(data,
+                candidate_kernels=candidate_kernels,
+                tr_proportion=tr_proportion, reg=1e-3)
+    return { 'test_result': mmd_result, 'time_secs': t.secs}
 
 # Define our custom Job, which inherits from base class IndependentJob
 class Ex1Job(IndependentJob):
@@ -300,6 +338,7 @@ from kgof.ex.ex1_vary_n import job_kstein_med
 from kgof.ex.ex1_vary_n import job_lin_kstein_med
 from kgof.ex.ex1_vary_n import job_mmd_med
 from kgof.ex.ex1_vary_n import job_mmd_opt
+from kgof.ex.ex1_vary_n import job_mmd_dgauss_opt
 
 
 #--- experimental setting -----
@@ -318,11 +357,13 @@ reps = 200
 method_job_funcs = [ 
         job_fssdJ5q_med, 
         job_fssdJ5q_opt, 
-        #job_me_opt,
         job_kstein_med,
         job_lin_kstein_med,
-        #job_mmd_med,
         job_mmd_opt,
+        #job_mmd_dgauss_opt,
+
+        #job_mmd_med,
+        job_me_opt,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -352,7 +393,7 @@ def gbrbm_perturb(var_perturb_B, dx=50, dh=10):
         if var_perturb_B > 1e-7:
             B_perturb[0, 0] = B_perturb[0, 0] + \
                 np.random.randn(1)*np.sqrt(var_perturb_B)
-        ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=500)
+        ds = data.DSGaussBernRBM(B_perturb, b, c, burnin=2000)
 
     return p, ds
 
@@ -380,7 +421,24 @@ def get_ns_pqsource(prob_label):
             # Perturbation variance to B[0, 0] is 0.1
             'gbrbm_dx50_dh10_vp1': 
                 ([i*1000 for i in range(1, 5+1)], ) + 
+                #([1000, 5000], ) + 
                 gbrbm_perturb(var_perturb_B=0.1, dx=50, dh=10), 
+
+            # Gaussian Bernoulli RBM. dx=50, dh=10 
+            # Perturbation variance to B[0, 0] is 0.1
+            # *** vp5's noise is too strong (easy)
+            'gbrbm_dx50_dh10_vp5': 
+                #([i*1000 for i in range(1, 5+1)], ) + 
+                ([1000, 5000], ) + 
+                gbrbm_perturb(var_perturb_B=0.5, dx=50, dh=10), 
+
+            # Gaussian Bernoulli RBM. dx=50, dh=10 
+            # No perturbation
+            'gbrbm_dx50_dh10_h0': 
+                ([i*1000 for i in range(1, 5+1)], ) + 
+                #([1000, 5000], ) + 
+                gbrbm_perturb(var_perturb_B=0, dx=50, dh=10), 
+
 
             # Gaussian Bernoulli RBM. dx=20, dh=10 
             # Perturbation variance to B[0, 0] is 0.1
