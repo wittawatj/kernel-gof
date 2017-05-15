@@ -150,7 +150,7 @@ class GaussMETestOpt(gof.GofTest):
         if op is None:
             op = {'n_test_locs': self.n_locs, 'seed': seed+5, 'max_iter': 100, 
                  'batch_proportion': 1.0, 'locs_step_size': 1.0, 
-                  'gwidth_step_size': 0.1, 'tol_fun': 1e-4}
+                  'gwidth_step_size': 0.1, 'tol_fun': 1e-4, 'reg':1e-6}
         seed = self.seed
         alpha = self.alpha
         p = self.p

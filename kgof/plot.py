@@ -28,6 +28,7 @@ def get_func_tuples():
 
             ('job_fssdJ1q_opt2', 'FSSD-opt2 J1', 'b-^'),
             ('job_fssdJ5q_opt2', 'FSSD-opt2 J5', 'r-^'),
+            ('job_me_opt', 'ME-opt', 'b-d'),
 
             ('job_kstein_med', 'KSD', 'g-o'),
             ('job_lin_kstein_med', 'LKS', 'g-.h'),

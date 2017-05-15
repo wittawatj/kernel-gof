@@ -154,9 +154,10 @@ def job_me_opt(p, data_source, tr, te, r, J=5):
         #Y = datY.data()
         #XY = np.vstack((X, Y))
         #med = util.meddistance(XY, subsample=1000)
-        op = {'n_test_locs': J, 'seed': r+5, 'max_iter': 200, 
+        op = {'n_test_locs': J, 'seed': r+5, 'max_iter': 40, 
              'batch_proportion': 1.0, 'locs_step_size': 1.0, 
-              'gwidth_step_size': 0.1, 'tol_fun': 1e-4}
+              'gwidth_step_size': 0.1, 'tol_fun': 1e-4, 
+              'reg': 1e-3}
         # optimize on the training set
         me_opt = tgof.GaussMETestOpt(p, n_locs=J, tr_proportion=tr_proportion,
                 alpha=alpha, seed=r+111)
@@ -222,7 +223,7 @@ def job_mmd_med(p, data_source, tr, te, r):
         med_avg = (medx+medy+medxy)/3.0
         k = kernel.KGauss(med_avg**2)
 
-        mmd_test = mgof.QuadMMDGof(p, k, n_permute=500, alpha=alpha, seed=r)
+        mmd_test = mgof.QuadMMDGof(p, k, n_permute=400, alpha=alpha, seed=r)
         mmd_result = mmd_test.perform_test(data)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
@@ -247,11 +248,12 @@ def job_mmd_opt(p, data_source, tr, te, r):
 
         # Construct a list of kernels to try based on multiples of the median
         # heuristic
-        list_gwidth = np.hstack( ( (med**2) *(2.0**np.linspace(-4, 4, 30) ) ) )
+        list_gwidth = np.hstack( (np.linspace(0.1, 40, 10), [2*medx**2], (med**2)
+            *(2.0**np.linspace(-3, 3, 20) ) ) )
         list_gwidth.sort()
         candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
 
-        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=500, alpha=alpha, seed=r)
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=400, alpha=alpha, seed=r)
         mmd_result = mmd_opt.perform_test(data,
                 candidate_kernels=candidate_kernels,
                 tr_proportion=tr_proportion, reg=1e-3)
@@ -349,7 +351,7 @@ method_job_funcs = [
         #job_fssdJ10q_opt,
         #job_fssdJ5p_opt,
         #job_fssdJ10p_opt,
-        job_me_opt,
+        #job_me_opt,
         job_kstein_med, 
         job_lin_kstein_med,
         #job_mmd_med,
