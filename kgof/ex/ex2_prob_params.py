@@ -254,7 +254,7 @@ def job_mmd_opt(p, data_source, tr, te, r):
         list_gwidth.sort()
         candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
 
-        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=300, alpha=alpha, seed=r)
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=300, alpha=alpha, seed=r+56)
         mmd_result = mmd_opt.perform_test(data,
                 candidate_kernels=candidate_kernels,
                 tr_proportion=tr_proportion, reg=1e-3)
@@ -343,13 +343,11 @@ alpha = 0.05
 # training proportion of the FSSD test, MMD-opt test
 tr_proportion = 0.2
 # repetitions for each parameter setting
-reps = 200
+reps = 300
 
 method_job_funcs = [ 
-        #job_fssdJ1q_med, 
-        job_fssdJ5q_med, 
-        #job_fssdJ1q_opt, 
         job_fssdJ5q_opt,
+        job_fssdJ5q_med, 
         #job_fssdJ10q_opt,
         #job_fssdJ5p_opt,
         #job_fssdJ10p_opt,
@@ -357,7 +355,7 @@ method_job_funcs = [
         job_lin_kstein_med,
         #job_mmd_med,
         job_mmd_opt,
-        #job_me_opt,
+        job_me_opt,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -415,6 +413,7 @@ def get_pqsource_list(prob_label):
     #gb_rbm_dx50_dh10_stds = [0, 0.01, 0.02, 0.03]
     gb_rbm_dx50_dh10_stds = [0, 0.02, 0.04, 0.06]
     #gb_rbm_dx50_dh10_stds = [0]
+    gb_rbm_dx50_dh40_stds = [0, 0.01, 0.02, 0.04, 0.06]
     glaplace_ds = [1, 5, 10, 15]
     prob2tuples = { 
             # H0 is true. vary d. P = Q = N(0, I)
@@ -456,6 +455,10 @@ def get_pqsource_list(prob_label):
             'gbrbm_dx50_dh10': gaussbern_rbm_probs(gb_rbm_dx50_dh10_stds,
                 dx=50, dh=10, n=sample_size),
 
+            # Gaussian Bernoulli RBM. dx=50, dh=40
+            'gbrbm_dx50_dh40': gaussbern_rbm_probs(gb_rbm_dx50_dh40_stds,
+                dx=50, dh=40, n=sample_size),
+            
             # p: N(0, I), q: standard Laplace. Vary d
             'glaplace': [(d, density.IsotropicNormal(np.zeros(d), 1), 
                 # Scaling of 1/sqrt(2) will make the variance 1.

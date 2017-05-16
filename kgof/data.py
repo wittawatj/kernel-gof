@@ -740,7 +740,7 @@ class DSGaussCosFreqs(DataSource):
             # rejection sampling
             sam = np.zeros((n, d))
             # sample block_size*d at a time.
-            block_size = 300
+            block_size = 500
             from_ind = 0
             while from_ind < n:
                 # The proposal q is N(0, sigma2*I)
