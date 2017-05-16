@@ -242,24 +242,29 @@ class GaussBernRBM(UnnormalizedDensity):
         assert len(unden) == X.shape[0]
         return unden
 
-    #def grad_log(self, X):
+    def grad_log(self, X):
     #    """
     #    Evaluate the gradients (with respect to the input) of the log density at
     #    each of the n points in X. This is the score function.
 
     #    X: n x d numpy array.
+        """
+        Evaluate the gradients (with respect to the input) of the log density at
+        each of the n points in X. This is the score function.
 
-    #    Return an n x d numpy array of gradients.
-    #    """
-    #    XB = np.dot(X, self.B)
-    #    Y = XB + self.c
-    #    E2y = np.exp(2*Y)
-    #    # n x dh
-    #    Phi = (E2y-1.0)/(E2y+1)
-    #    # n x dx
-    #    T = np.dot(Phi, self.B.T)
-    #    S = self.b - X + T
-    #    return S
+        X: n x d numpy array.
+
+        Return an n x d numpy array of gradients.
+        """
+        XB = np.dot(X, self.B)
+        Y = 0.5*XB + self.c
+        E2y = np.exp(2*Y)
+        # n x dh
+        Phi = (E2y-1.0)/(E2y+1)
+        # n x dx
+        T = np.dot(Phi, 0.5*self.B.T)
+        S = self.b - X + T
+        return S
 
     def get_datasource(self):
         return data.DSGaussBernRBM(self.B, self.b, self.c)
