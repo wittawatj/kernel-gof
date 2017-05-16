@@ -709,3 +709,60 @@ class DSResample(DataSource):
         dat = Data(self.X)
         return dat.subsample(n, seed=seed, return_ind = return_ind)
 
+# end class DSResample
+
+class DSGaussCosFreqs(DataSource):
+    """
+    A DataSource to sample from the density 
+    p(x) \propto exp(-||x||^2/2sigma^2)*(1+ prod_{i=1}^d cos(w_i*x_i))
+
+    where w1,..wd are frequencies of each dimension.
+    sigma^2 is the overall variance.
+    """
+    def __init__(self, sigma2, freqs):
+        """
+        sigma2: overall scale of the distribution. A positive scalar.
+        freqs: a 1-d array of length d for the frequencies.
+        """
+        self.sigma2 = sigma2
+        if sigma2 <= 0 :
+            raise ValueError('sigma2 must be > 0')
+        self.freqs = freqs
+
+    def sample(self, n, seed=872):
+        """
+        Rejection sampling.
+        """
+        d = len(self.freqs)
+        sigma2 = self.sigma2
+        freqs = self.freqs
+        with util.NumpySeedContext(seed=seed):
+            # rejection sampling
+            sam = np.zeros((n, d))
+            # sample block_size*d at a time.
+            block_size = 300
+            from_ind = 0
+            while from_ind < n:
+                # The proposal q is N(0, sigma2*I)
+                X = np.random.randn(block_size, d)*np.sqrt(sigma2)
+                q_un = np.exp(-np.sum(X**2, 1)/(2.0*sigma2))
+                # unnormalized density p
+                p_un = q_un*(1+np.prod(np.cos(X*freqs), 1))
+                c = 2.0
+                I = stats.uniform.rvs(size=block_size) < p_un/(c*q_un)
+
+                # accept 
+                accepted_count = np.sum(I)
+                to_take = min(n - from_ind, accepted_count)
+                end_ind = from_ind + to_take
+
+                AX = X[I, :]
+                X_take = AX[:to_take, :]
+                sam[from_ind:end_ind, :] = X_take
+                from_ind = end_ind
+        return Data(sam)
+
+
+
+
+

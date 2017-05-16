@@ -104,8 +104,8 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
             'tol_fun': 1e-4,
             'disp': True,
             'locs_bounds_frac':10.0,
-            'gwidth_lb': 2e-1,
-            'gwidth_ub': 1e3,
+            'gwidth_lb': 1e-1,
+            'gwidth_ub': 1e4,
             }
 
         V_opt, gwidth_opt, info = gof.GaussFSSD.optimize_locs_widths(p, tr,
@@ -260,6 +260,7 @@ def job_mmd_opt(p, data_source, tr, te, r):
                 tr_proportion=tr_proportion, reg=1e-3)
     return { 'test_result': mmd_result, 'time_secs': t.secs}
 
+
 # Define our custom Job, which inherits from base class IndependentJob
 class Ex2Job(IndependentJob):
    
@@ -352,11 +353,11 @@ method_job_funcs = [
         #job_fssdJ10q_opt,
         #job_fssdJ5p_opt,
         #job_fssdJ10p_opt,
-        job_me_opt,
         job_kstein_med, 
         job_lin_kstein_med,
         #job_mmd_med,
         job_mmd_opt,
+        #job_me_opt,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -411,7 +412,8 @@ def get_pqsource_list(prob_label):
     gvsub1_d1_vs = [0.1, 0.3, 0.5, 0.7]
     gvd_ds = [1, 5, 10, 15]
 
-    gb_rbm_dx50_dh10_stds = [0, 0.01, 0.02, 0.03]
+    #gb_rbm_dx50_dh10_stds = [0, 0.01, 0.02, 0.03]
+    gb_rbm_dx50_dh10_stds = [0, 0.02, 0.04, 0.06]
     #gb_rbm_dx50_dh10_stds = [0]
     glaplace_ds = [1, 5, 10, 15]
     prob2tuples = { 

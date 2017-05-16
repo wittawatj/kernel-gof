@@ -490,3 +490,34 @@ class Resample(UnnormalizedDensity):
         return 1
 
 # end class SigmoidPoisson2D
+
+class GaussCosFreqs(UnnormalizedDensity):
+    """
+    p(x) \propto exp(-||x||^2/2sigma^2)*(1+ prod_{i=1}^d cos(w_i*x_i))
+
+    where w1,..wd are frequencies of each dimension.
+    sigma^2 is the overall variance.
+    """
+
+    def __init__(self, sigma2, freqs):
+        """
+        sigma2: overall scale of the distribution. A positive scalar.
+        freqs: a 1-d array of length d for the frequencies.
+        """
+        self.sigma2 = sigma2
+        if sigma2 <= 0 :
+            raise ValueError('sigma2 must be > 0')
+        self.freqs = freqs
+
+    def log_den(self, X):
+        sigma2 = self.sigma2
+        freqs = self.freqs
+        log_unden = -np.sum(X**2, 1)/(2.0*sigma2) + 1+np.prod(np.cos(X*freqs), 1)
+        return log_unden
+
+    def dim(self):
+        return len(self.freqs)
+
+    def get_datasource(self):
+        return data.DSGaussCosFreqs(self.sigma2, self.freqs)
+

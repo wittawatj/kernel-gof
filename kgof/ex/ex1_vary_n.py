@@ -116,6 +116,9 @@ def job_fssdJ1q_opt(p, data_source, tr, te, r, J=1, null_sim=None):
 def job_fssdJ5q_opt(p, data_source, tr, te, r):
     return job_fssdJ1q_opt(p, data_source, tr, te, r, J=5)
 
+def job_fssdJ10q_opt(p, data_source, tr, te, r):
+    return job_fssdJ1q_opt(p, data_source, tr, te, r, J=10)
+
 def job_me_opt(p, data_source, tr, te, r, J=5):
     """
     ME test of Jitkrittum et al., 2016 used as a goodness-of-fit test.
@@ -228,7 +231,7 @@ def job_mmd_opt(p, data_source, tr, te, r):
         # heuristic
         #list_gwidth = np.hstack( (np.linspace(20, 40, 10), (med**2)
         #    *(2.0**np.linspace(-2, 2, 20) ) ) )
-        list_gwidth = (med**2)*(2.0**np.linspace(-3, 3, 30) ) 
+        list_gwidth = (med**2)*(2.0**np.linspace(-2, 2, 30) ) 
         list_gwidth.sort()
         candidate_kernels = [kernel.KGauss(gw2) for gw2 in list_gwidth]
 
@@ -271,7 +274,7 @@ def job_mmd_dgauss_opt(p, data_source, tr, te, r):
             ki = kernel.KDiagGauss( (meds**2)*med_factors[i] )
             candidate_kernels.append(ki)
 
-        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=300, alpha=alpha, seed=r)
+        mmd_opt = mgof.QuadMMDGofOpt(p, n_permute=500, alpha=alpha, seed=r)
         mmd_result = mmd_opt.perform_test(data,
                 candidate_kernels=candidate_kernels,
                 tr_proportion=tr_proportion, reg=1e-3)
@@ -333,6 +336,7 @@ from kgof.ex.ex1_vary_n import job_fssdJ1q_med
 from kgof.ex.ex1_vary_n import job_fssdJ5q_med
 from kgof.ex.ex1_vary_n import job_fssdJ1q_opt
 from kgof.ex.ex1_vary_n import job_fssdJ5q_opt
+from kgof.ex.ex1_vary_n import job_fssdJ10q_opt
 from kgof.ex.ex1_vary_n import job_me_opt
 from kgof.ex.ex1_vary_n import job_kstein_med
 from kgof.ex.ex1_vary_n import job_lin_kstein_med
@@ -351,19 +355,20 @@ alpha = 0.05
 tr_proportion = 0.2
 
 # repetitions for each sample size 
-reps = 200
+reps = 50
 
 # tests to try
 method_job_funcs = [ 
         job_fssdJ5q_med, 
         job_fssdJ5q_opt, 
+        #job_fssdJ10q_opt,
         job_kstein_med,
         job_lin_kstein_med,
         job_mmd_opt,
         #job_mmd_dgauss_opt,
 
         #job_mmd_med,
-        job_me_opt,
+        #job_me_opt,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
@@ -420,22 +425,14 @@ def get_ns_pqsource(prob_label):
             # Gaussian Bernoulli RBM. dx=50, dh=10 
             # Perturbation variance to B[0, 0] is 0.1
             'gbrbm_dx50_dh10_vp1': 
-                ([i*1000 for i in range(1, 5+1)], ) + 
+                ([i*1000 for i in range(1, 4+1)], ) + 
                 #([1000, 5000], ) + 
                 gbrbm_perturb(var_perturb_B=0.1, dx=50, dh=10), 
 
             # Gaussian Bernoulli RBM. dx=50, dh=10 
-            # Perturbation variance to B[0, 0] is 0.1
-            # *** vp5's noise is too strong (easy)
-            'gbrbm_dx50_dh10_vp5': 
-                #([i*1000 for i in range(1, 5+1)], ) + 
-                ([1000, 5000], ) + 
-                gbrbm_perturb(var_perturb_B=0.5, dx=50, dh=10), 
-
-            # Gaussian Bernoulli RBM. dx=50, dh=10 
             # No perturbation
             'gbrbm_dx50_dh10_h0': 
-                ([i*1000 for i in range(1, 5+1)], ) + 
+                ([i*1000 for i in range(1, 4+1)], ) + 
                 #([1000, 5000], ) + 
                 gbrbm_perturb(var_perturb_B=0, dx=50, dh=10), 
 
@@ -452,24 +449,6 @@ def get_ns_pqsource(prob_label):
                 ([i*1000 for i in range(2, 5+1)], ) + 
                 gbrbm_perturb(var_perturb_B=0, dx=20, dh=10), 
 
-            # Gaussian Bernoulli RBM. dx=20, dh=5 
-            # Perturbation variance to B[0, 0] is 0.1
-            'gbrbm_dx20_dh5_vp1': 
-                ([i*1000 for i in range(2, 3+1)], ) + 
-                gbrbm_perturb(var_perturb_B=0.1, dx=20, dh=5), 
-
-            # Gaussian Bernoulli RBM. dx=20, dh=5 
-            # No perturbation
-            'gbrbm_dx20_dh5_h0': 
-                ([i*1000 for i in range(2, 3+1)], ) + 
-                gbrbm_perturb(var_perturb_B=0, dx=20, dh=5), 
-
-
-            # Gaussian Bernoulli RBM. dx=10, dh=5 
-            # Perturbation variance to B[0, 0] is 0.1
-            'gbrbm_dx10_dh5_vp1': 
-                ([i*1000 for i in range(1, 5+1)], ) + 
-                gbrbm_perturb(var_perturb_B=0.1, dx=10, dh=5), 
 
             }
     if prob_label not in prob2tuples:

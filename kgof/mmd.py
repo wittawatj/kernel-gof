@@ -138,7 +138,7 @@ class QuadMMDGofOpt(gof.GofTest):
             seed = self.seed
             p = self.p
             ds = p.get_datasource()
-            p_sample = ds.sample(dat.sample_size(), seed=seed)
+            p_sample = ds.sample(dat.sample_size(), seed=seed+77)
             xtr, xte = p_sample.split_tr_te(tr_proportion=tr_proportion, seed=seed+18)
             # ytr, yte are of type data.Data
             ytr, yte = dat.split_tr_te(tr_proportion=tr_proportion, seed=seed+12)

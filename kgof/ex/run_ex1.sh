@@ -7,9 +7,6 @@ screen -AdmS ex1_kgof -t tab0 bash
 
 #screen -S ex1_kgof -X screen -t tab6 bash -lic "python ex1_vary_n.py gmd_p03_d10_ns"
 
-#screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx10_dh5_vp1"
-#screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx20_dh5_vp1"
-#screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx20_dh5_h0"
 
 screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx50_dh10_h0"
 screen -S ex1_kgof -X screen -t tab7 bash -lic "python ex1_vary_n.py gbrbm_dx50_dh10_vp1"
