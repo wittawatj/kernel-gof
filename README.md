@@ -1,2 +1,2 @@
 # kernel-gof
-an interpretable linear-time kernel goodness-of-fit test
+An interpretable linear-time kernel goodness-of-fit test. Code will be updated soon. 
