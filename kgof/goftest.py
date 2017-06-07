@@ -94,7 +94,7 @@ class FSSDH0SimCovObs(H0Simulator):
     This is not the correct null distribution; but has the correct asymptotic
     types-1 error at alpha.
     """
-    def __init__(self, n_simulate=2000, seed=10):
+    def __init__(self, n_simulate=3000, seed=10):
         super(FSSDH0SimCovObs, self).__init__(n_simulate, seed)
 
     def simulate(self, gof, dat, fea_tensor=None):
@@ -133,7 +133,7 @@ class FSSDH0SimCovDraw(H0Simulator):
     
     - The UnnormalizedDensity p is required to implement get_datasource() method.
     """
-    def __init__(self, n_draw=2000, n_simulate=2000, seed=10):
+    def __init__(self, n_draw=2000, n_simulate=3000, seed=10):
         """
         n_draw: number of samples to draw from the UnnormalizedDensity p
         """
@@ -307,7 +307,7 @@ class FSSD(GofTest):
         return Xi
 
     @staticmethod
-    def power_criterion(p, dat, k, test_locs, reg=1e-2):
+    def power_criterion(p, dat, k, test_locs, reg=1e-2, use_unbiased=True):
         """
         Compute the mean and standard deviation of the statistic under H1.
         Return mean/sd.
@@ -317,20 +317,23 @@ class FSSD(GofTest):
         fssd = FSSD(p, k, V, null_sim=None)
         fea_tensor = fssd.feature_tensor(X)
         u_mean, u_variance = FSSD.ustat_h1_mean_variance(fea_tensor,
-                return_variance=True)
+                return_variance=True, use_unbiased=use_unbiased)
 
         # mean/sd criterion 
         obj = u_mean/np.sqrt(u_variance + reg) 
         return obj
 
     @staticmethod
-    def ustat_h1_mean_variance(fea_tensor, return_variance=True):
+    def ustat_h1_mean_variance(fea_tensor, return_variance=True,
+            use_unbiased=True):
         """
         Compute the mean and variance of the asymptotic normal distribution 
         under H1 of the test statistic.
 
         fea_tensor: feature tensor obtained from feature_tensor()
         return_variance: If false, avoid computing and returning the variance.
+        use_unbiased: If True, use the unbiased version of the mean. Can be
+            negative.
 
         Return the mean [and the variance]
         """
@@ -342,10 +345,13 @@ class FSSD(GofTest):
         assert n > 1, 'Need n > 1 to compute the mean of the statistic.'
         # n x d*J
         Tau = Xi.reshape(n, -1)
-        t1 = np.sum(np.mean(Tau, 0)**2)*(n/float(n-1))
-        t2 = np.sum(np.mean(Tau**2, 0))/float(n-1)
-        # stat is the mean
-        stat = t1 - t2
+        if use_unbiased:
+            t1 = np.sum(np.mean(Tau, 0)**2)*(n/float(n-1))
+            t2 = np.sum(np.mean(Tau**2, 0))/float(n-1)
+            # stat is the mean
+            stat = t1 - t2
+        else:
+            stat = np.sum(np.mean(Tau, 0)**2)
 
         if not return_variance:
             return stat
@@ -378,7 +384,7 @@ class FSSD(GofTest):
         return sim_fssds, eigs
 
     @staticmethod 
-    def simulate_null_dist(eigs, J, n_simulate=1000, seed=7):
+    def simulate_null_dist(eigs, J, n_simulate=2000, seed=7):
         """
         Simulate the null distribution using the spectrums of the covariance 
         matrix of the U-statistic. The simulated statistic is n*FSSD^2 where

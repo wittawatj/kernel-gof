@@ -190,7 +190,7 @@ sample_size = 500
 alpha = 0.05
 tr_proportion = 0.5
 # repetitions for each parameter setting
-reps = 200
+reps = 300
 
 # list of number of test locations/frequencies
 #Js = [5, 10, 15, 20, 25]
