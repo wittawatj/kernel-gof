@@ -12,6 +12,12 @@ import kgof.config as config
 import kgof.util as util
 import kgof.data as data
 import scipy.stats as stats
+#import warnings
+import logging
+
+def warn_bounded_domain(self):
+    logging.warning('{} has a bounded domain. This may have an unintended effect to the test result of FSSD.'.format(self.__class__) )
+
 
 class UnnormalizedDensity(object):
     __metaclass__ = ABCMeta
@@ -283,6 +289,7 @@ class ISIPoissonLinear(UnnormalizedDensity):
         """
         b: slope of the linear function 
         """
+        warn_bounded_domain(self)
         self.b = b 
     
     def log_den(self, X):
@@ -305,6 +312,7 @@ class ISIPoissonSine(UnnormalizedDensity):
         w: the frequency of sine function
         b: amplitude of intensity function
         """
+        warn_bounded_domain(self)
         self.b = b
         self.w = w
     
@@ -328,6 +336,7 @@ class Gamma(UnnormalizedDensity):
         alpha: shape of parameter
         beta: scale
         """
+        warn_bounded_domain(self)
         self.alpha = alpha 
         self.beta = beta
         
@@ -384,6 +393,7 @@ class ISILogPoissonLinear(UnnormalizedDensity):
         """
         b: slope of the linear function 
         """
+        warn_bounded_domain(self)
         self.b = b 
     
     def log_den(self, X):
@@ -404,6 +414,7 @@ class ISIPoisson2D(UnnormalizedDensity):
         """
         lambda_(X,Y) = X^2 + Y^2
         """
+        warn_bounded_domain(self)
 
     def quadratic_intensity(self,X,Y):
         int_intensity = -(X**2+Y**2)*X*Y + 3*np.log(X**2+Y**2)
@@ -430,6 +441,7 @@ class ISISigmoidPoisson2D(UnnormalizedDensity):
         Y = 1/(1+exp(t))
         X, Y \in [0,1], s,t \in R
         """
+        warn_bounded_domain(self)
         self.a = a
         self.w = w
         if intensity == 'quadratic':
