@@ -1,0 +1,9 @@
+# include the LICENSE
+include LICENSE
+
+# include the test script
+include run_unittest.sh
+
+# remove some files
+#recursive-exclude data *
+#recursive-exclude kgof/ex *
