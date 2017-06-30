@@ -449,9 +449,10 @@ class GaussFSSD(FSSD):
     """
     FSSD using an isotropic Gaussian kernel.
     """
-    def __init__(self, p, sigma2, V, alpha=0.01, n_simulate=1000, seed=10):
+    def __init__(self, p, sigma2, V, alpha=0.01, n_simulate=3000, seed=10):
         k = kernel.KGauss(sigma2)
-        super(GaussFSSD, self).__init__(p, k, V, alpha, n_simulate, seed)
+        null_sim = FSSDH0SimCovObs(n_simulate=n_simulate, seed=seed)
+        super(GaussFSSD, self).__init__(p, k, V, null_sim, alpha)
 
     @staticmethod 
     def power_criterion(p, dat, gwidth, test_locs, reg=1e-2):
