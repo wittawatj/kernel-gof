@@ -1,0 +1,28 @@
+language: python
+python:
+    - 2.7
+
+before_install:
+    - sudo apt-get update
+    - sudo apt-get install  libblas-dev liblapack-dev libatlas-base-dev gfortran
+    #- sudo apt-get install  python-numpy python-scipy python-matplotlib
+
+    - wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+    - bash miniconda.sh -b -p $HOME/miniconda
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - conda update --yes conda
+    - conda config --add channels conda-forge
+install:
+    - conda install --yes python=$TRAVIS_PYTHON_VERSION pip numpy scipy nose future autograd matplotlib
+    #- pip install -r requirements.txt
+
+# command to run tests
+script:
+    - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then python -m unittest discover; fi
+
+notifications:
+    email:
+        recipients:
+            - wittawatj@gmail.com 
+        on_success: change 
+        on_failure: change

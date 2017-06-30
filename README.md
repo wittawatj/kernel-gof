@@ -1,6 +1,6 @@
 # kgof
 
-[![Build Status](https://travis-ci.com/wittawatj/kgof.svg?token=yWUaYGwontVUwf9G8fLY&branch=master)](https://travis-ci.com/wittawatj/kgof)
+[![Build Status](https://travis-ci.org/wittawatj/kernel-gof.svg?branch=master)](https://travis-ci.org/wittawatj/kernel-gof)
 
 Linear-time kernel goodness-of-fit test
 
