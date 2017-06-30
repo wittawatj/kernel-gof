@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wittawatj/fsic-test/blob/master/LICENSE)
 
 This repository contains a Python 2.7 implementation of the nonparametric
-linear-time goodness-of-fit test described in our paper 
+linear-time goodness-of-fit test described in  [our paper](https://arxiv.org/abs/1705.07673)
 
     A Linear-Time Kernel Goodness-of-Fit Test
     Wittawat Jitkrittum, Wenkai Xu, Zoltan Szabo, Kenji Fukumizu, Arthur Gretton
