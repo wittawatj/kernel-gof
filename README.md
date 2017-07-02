@@ -1,7 +1,7 @@
 # kgof
 
 [![Build Status](https://travis-ci.org/wittawatj/kernel-gof.svg?branch=master)](https://travis-ci.org/wittawatj/kernel-gof)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wittawatj/fsic-test/blob/master/LICENSE)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wittawatj/kernel-gof/blob/master/LICENSE)
 
 This repository contains a Python 2.7 implementation of the nonparametric
 linear-time goodness-of-fit test described in  [our paper](https://arxiv.org/abs/1705.07673)
