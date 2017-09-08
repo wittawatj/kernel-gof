@@ -8,6 +8,7 @@ linear-time goodness-of-fit test described in  [our paper](https://arxiv.org/abs
 
     A Linear-Time Kernel Goodness-of-Fit Test
     Wittawat Jitkrittum, Wenkai Xu, Zoltan Szabo, Kenji Fukumizu, Arthur Gretton
+    NIPS 2017
     https://arxiv.org/abs/1705.07673
 
 ## How to install?

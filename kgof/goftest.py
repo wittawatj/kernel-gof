@@ -195,7 +195,8 @@ class FSSD(GofTest):
     NULLSIM_COVP = 1
 
 
-    def __init__(self, p, k, V, null_sim, alpha=0.01):
+    def __init__(self, p, k, V, null_sim=FSSDH0SimCovObs(n_simulate=3000,
+        seed=101), alpha=0.01):
         """
         p: an instance of UnnormalizedDensity
         k: a DifferentiableKernel object
@@ -513,7 +514,7 @@ class GaussFSSD(FSSD):
 
     @staticmethod
     def optimize_locs_widths(p, dat, gwidth0, test_locs0, reg=1e-2,
-            max_iter=100,  tol_fun=1e-3, disp=False, locs_bounds_frac=100,
+            max_iter=100,  tol_fun=1e-5, disp=False, locs_bounds_frac=100,
             gwidth_lb=None, gwidth_ub=None,
             ):
         """
@@ -528,8 +529,6 @@ class GaussFSSD(FSSD):
             mean/sqrt(variance + reg)
         - gwidth0: initial value of the Gaussian width^2
         - max_iter: #gradient descent iterations
-        - optimization_method: a string specifying an optimization method as described 
-            by scipy.optimize.minimize  
         - tol_fun: termination tolerance of the objective value
         - disp: True to print convergence messages
         - locs_bounds_frac: When making box bounds for the test_locs, extend
@@ -598,7 +597,7 @@ class GaussFSSD(FSSD):
               tol=tol_fun, 
               options={
                   'maxiter': max_iter, 'ftol': tol_fun, 'disp': disp,
-                  'gtol': 1.0e-05,
+                  'gtol': 1.0e-06,
                   },
               jac=grad_obj,
             )
@@ -613,8 +612,8 @@ class GaussFSSD(FSSD):
 
         return V_opt, gw_opt, opt_result
 
+# end of class GaussFSSD
 
-# ------------------
 
 def bootstrapper_rademacher(n):
     """
@@ -628,8 +627,264 @@ def bootstrapper_multinomial(n):
     Produce a sequence of i.i.d Multinomial(n; 1/n,... 1/n) random variables.
     This is described on page 5 of Liu et al., 2016 (ICML 2016).
     """
+    import warnings
+    warnings.warn('Somehow bootstrapper_multinomial() does not give the right null distribution.')
     M = np.random.multinomial(n, np.ones(n)/float(n), size=1) 
     return M.reshape(-1) - 1.0/n
+
+
+
+class IMQFSSD(FSSD):
+    """
+    FSSD using the inverse multiquadric kernel (IMQ).
+
+    k(x,y) = (c^2 + ||x-y||^2)^b 
+    where c > 0 and b < 0. 
+    """
+    def __init__(self, p, b, c, V, alpha=0.01, n_simulate=3000, seed=10):
+        """
+        n_simulate: number of times to draw from the null distribution.
+        """
+        k = kernel.KIMQ(b=b, c=c)
+        null_sim = FSSDH0SimCovObs(n_simulate=n_simulate, seed=seed)
+        super(IMQFSSD, self).__init__(p, k, V, null_sim, alpha)
+
+    @staticmethod 
+    def power_criterion(p, dat, b, c, test_locs, reg=1e-2):
+        k = kernel.KIMQ(b=b, c=c)
+        return FSSD.power_criterion(p, dat, k, test_locs, reg)
+
+    #@staticmethod
+    #def optimize_auto_init(p, dat, J, **ops):
+    #    """
+    #    Optimize parameters by calling optimize_locs_widths(). Automatically 
+    #    initialize the test locations and the Gaussian width.
+
+    #    Return optimized locations, Gaussian width, optimization info
+    #    """
+    #    assert J>0
+    #    # Use grid search to initialize the gwidth
+    #    X = dat.data()
+    #    n_gwidth_cand = 5
+    #    gwidth_factors = 2.0**np.linspace(-3, 3, n_gwidth_cand) 
+    #    med2 = util.meddistance(X, 1000)**2
+
+    #    k = kernel.KGauss(med2*2)
+    #    # fit a Gaussian to the data and draw to initialize V0
+    #    V0 = util.fit_gaussian_draw(X, J, seed=829, reg=1e-6)
+    #    list_gwidth = np.hstack( ( (med2)*gwidth_factors ) )
+    #    besti, objs = GaussFSSD.grid_search_gwidth(p, dat, V0, list_gwidth)
+    #    gwidth = list_gwidth[besti]
+    #    assert util.is_real_num(gwidth), 'gwidth not real. Was %s'%str(gwidth)
+    #    assert gwidth > 0, 'gwidth not positive. Was %.3g'%gwidth
+    #    logging.info('After grid search, gwidth=%.3g'%gwidth)
+
+        
+    #    V_opt, gwidth_opt, info = GaussFSSD.optimize_locs_widths(p, dat,
+    #            gwidth, V0, **ops) 
+
+    #    # set the width bounds
+    #    #fac_min = 5e-2
+    #    #fac_max = 5e3
+    #    #gwidth_lb = fac_min*med2
+    #    #gwidth_ub = fac_max*med2
+    #    #gwidth_opt = max(gwidth_lb, min(gwidth_opt, gwidth_ub))
+    #    return V_opt, gwidth_opt, info
+
+    @staticmethod
+    def optimize_locs(p, dat, b, c, test_locs0, reg=1e-5, max_iter=100,
+            tol_fun=1e-5, disp=False, locs_bounds_frac=100):
+        """
+        Optimize just the test locations by maximizing a test power criterion,
+        keeping the kernel parameters b, c fixed to the specified values. data
+        should not be the same data as used in the actual test (i.e., should be
+        a held-out set). This function is deterministic.
+
+        - p: an UnnormalizedDensity specifying the problem
+        - dat: a Data object
+        - b, c: kernel parameters of the IMQ kernel. Not optimized.
+        - test_locs0: Jxd numpy array. Initial V.
+        - reg: reg to add to the mean/sqrt(variance) criterion to become
+            mean/sqrt(variance + reg)
+        - max_iter: #gradient descent iterations
+        - tol_fun: termination tolerance of the objective value
+        - disp: True to print convergence messages
+        - locs_bounds_frac: When making box bounds for the test_locs, extend
+            the box defined by coordinate-wise min-max by std of each coordinate
+            multiplied by this number.
+        
+        Return (V test_locs, optimization info log)
+        """
+        J = test_locs0.shape[0]
+        X = dat.data()
+        n, d = X.shape
+
+        def obj(V):
+            return -IMQFSSD.power_criterion(p, dat, b, c, V, reg=reg)
+
+        flatten = lambda V: V.reshape(-1)
+
+        def unflatten(x):
+            V = np.reshape(x, (J, d))
+            return V
+
+        def flat_obj(x):
+            V = unflatten(x)
+            return obj(V)
+
+        # Initial point
+        x0 = flatten(test_locs0)
+
+        # Make a box to bound test locations
+        X_std = np.std(X, axis=0)
+        # X_min: length-d array
+        X_min = np.min(X, axis=0)
+        X_max = np.max(X, axis=0)
+        # V_lb: J x d
+        V_lb = np.tile(X_min - locs_bounds_frac*X_std, (J, 1))
+        V_ub = np.tile(X_max + locs_bounds_frac*X_std, (J, 1))
+        # (J*d) x 2. 
+        x0_bounds = zip(V_lb.reshape(-1)[:, np.newaxis], V_ub.reshape(-1)[:, np.newaxis])
+
+        # optimize. Time the optimization as well.
+        # https://docs.scipy.org/doc/scipy/reference/optimize.minimize-lbfgsb.html
+        grad_obj = autograd.elementwise_grad(flat_obj)
+        with util.ContextTimer() as timer:
+            opt_result = scipy.optimize.minimize(
+              flat_obj, x0, method='L-BFGS-B', 
+              bounds=x0_bounds,
+              tol=tol_fun, 
+              options={
+                  'maxiter': max_iter, 'ftol': tol_fun, 'disp': disp,
+                  'gtol': 1.0e-06,
+                  },
+              jac=grad_obj,
+            )
+
+        opt_result = dict(opt_result)
+        opt_result['time_secs'] = timer.secs
+        x_opt = opt_result['x']
+        V_opt = unflatten(x_opt)
+        return V_opt, opt_result
+
+    @staticmethod
+    def optimize_locs_params(p, dat, b0, c0, test_locs0, reg=1e-2,
+            max_iter=100,  tol_fun=1e-5, disp=False, locs_bounds_frac=100,
+            b_lb= -20.0, b_ub= -1e-4, c_lb=1e-6, c_ub=1e3,
+            ):
+        """
+        Optimize the test locations and the the two parameters (b and c) of the
+        IMQ kernel by maximizing the test power criterion. 
+             k(x,y) = (c^2 + ||x-y||^2)^b 
+            where c > 0 and b < 0. 
+        data should not be the same data as used in the actual test (i.e.,
+        should be a held-out set). This function is deterministic.
+
+        - p: UnnormalizedDensity specifying the problem.
+        - b0: initial parameter value for b (in the kernel)
+        - c0: initial parameter value for c (in the kernel)
+        - dat: a Data object (training set)
+        - test_locs0: Jxd numpy array. Initial V.
+        - reg: reg to add to the mean/sqrt(variance) criterion to become
+            mean/sqrt(variance + reg)
+        - max_iter: #gradient descent iterations
+        - tol_fun: termination tolerance of the objective value
+        - disp: True to print convergence messages
+        - locs_bounds_frac: When making box bounds for the test_locs, extend
+            the box defined by coordinate-wise min-max by std of each coordinate
+            multiplied by this number.
+        - b_lb: absolute lower bound on b. b is always < 0.
+        - b_ub: absolute upper bound on b
+        - c_lb: absolute lower bound on c. c is always > 0.
+        - c_ub: absolute upper bound on c
+
+        #- If the lb, ub bounds are None 
+        
+        Return (V test_locs, b, c, optimization info log)
+        """
+
+        """
+        In the optimization, we will parameterize b with its square root.
+        Square back and negate to form b. c is not parameterized in any special
+        way since it enters to the kernel with c^2. Absolute value of c will be
+        taken to make sure it is positive.
+        """
+        J = test_locs0.shape[0]
+        X = dat.data()
+        n, d = X.shape
+
+        def obj(sqrt_neg_b, c, V):
+            b = -sqrt_neg_b**2
+            return -IMQFSSD.power_criterion(p, dat, b, c, V, reg=reg)
+
+        flatten = lambda sqrt_neg_b, c, V: np.hstack((sqrt_neg_b, c, V.reshape(-1)))
+        def unflatten(x):
+            sqrt_neg_b = x[0]
+            c = x[1]
+            V = np.reshape(x[2:], (J, d))
+            return sqrt_neg_b, c, V
+
+        def flat_obj(x):
+            sqrt_neg_b, c, V = unflatten(x)
+            return obj(sqrt_neg_b, c, V)
+
+        # gradient
+        #grad_obj = autograd.elementwise_grad(flat_obj)
+        # Initial point
+        b02 = np.sqrt(-b0)
+        x0 = flatten(b02, c0, test_locs0)
+        
+        # Make a box to bound test locations
+        X_std = np.std(X, axis=0)
+        # X_min: length-d array
+        X_min = np.min(X, axis=0)
+        X_max = np.max(X, axis=0)
+
+        # V_lb: J x d
+        V_lb = np.tile(X_min - locs_bounds_frac*X_std, (J, 1))
+        V_ub = np.tile(X_max + locs_bounds_frac*X_std, (J, 1))
+
+        # (J*d+2) x 2. Make sure to bound the reparamterized values (not the original)
+        """
+        For b, b2 := sqrt(-b)
+            lb <= b <= ub < 0 means 
+
+            sqrt(-ub) <= b2 <= sqrt(-lb)
+            Note the positions of ub, lb.
+        """
+        x0_lb = np.hstack((np.sqrt(-b_ub), c_lb, np.reshape(V_lb, -1)))
+        x0_ub = np.hstack((np.sqrt(-b_lb), c_ub, np.reshape(V_ub, -1)))
+        x0_bounds = zip(x0_lb, x0_ub)
+
+        # optimize. Time the optimization as well.
+        # https://docs.scipy.org/doc/scipy/reference/optimize.minimize-lbfgsb.html
+        grad_obj = autograd.elementwise_grad(flat_obj)
+        with util.ContextTimer() as timer:
+            opt_result = scipy.optimize.minimize(
+              flat_obj, x0, method='L-BFGS-B', 
+              bounds=x0_bounds,
+              tol=tol_fun, 
+              options={
+                  'maxiter': max_iter, 'ftol': tol_fun, 'disp': disp,
+                  'gtol': 1.0e-06,
+                  },
+              jac=grad_obj,
+            )
+
+        opt_result = dict(opt_result)
+        opt_result['time_secs'] = timer.secs
+        x_opt = opt_result['x']
+        sqrt_neg_b, c, V_opt = unflatten(x_opt)
+        b = -sqrt_neg_b**2
+        assert util.is_real_num(b), 'b is not real. Was {}'.format(b)
+        assert b < 0
+        assert util.is_real_num(c), 'c is not real. Was {}'.format(c)
+        assert c > 0
+
+        return V_opt, b, c, opt_result
+
+
+# end of class IMQFSSD
 
 class KernelSteinTest(GofTest):
     """
@@ -653,7 +908,7 @@ class KernelSteinTest(GofTest):
         k: a KSTKernel object
         bootstrapper: a function: (n) |-> numpy array of n weights 
             to be multiplied in the double sum of the test statistic for generating 
-            boostrap samples from the null distribution.
+            bootstrap samples from the null distribution.
         alpha: significance level 
         n_simulate: The number of times to simulate from the null distribution
             by bootstrapping. Must be a positive integer.
@@ -681,6 +936,7 @@ class KernelSteinTest(GofTest):
             with util.NumpySeedContext(seed=self.seed):
                 for i in range(n_simulate):
                    W = self.bootstrapper(n)
+                   # n * [ (1/n^2) * \sum_i \sum_j h(x_i, x_j) w_i w_j ]
                    boot_stat = W.dot(H.dot(W/float(n)))
                    # This is a bootstrap version of n*V_n
                    sim_stats[i] = boot_stat

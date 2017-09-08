@@ -21,7 +21,14 @@ def get_func_tuples():
             ('job_fssdJ1q_opt', 'FSSD-opt J1', 'r-s'),
             ('job_fssdq_opt', 'FSSD-opt', 'r-s'),
             ('job_fssdJ5q_opt', 'FSSD-opt', 'r-s'),
+            ('job_fssdJ5q_imq_optv', 'FSSD-IMQv', 'k-h'),
+            ('job_fssdJ5q_imqb1_optv', 'FSSD-IMQ-1', 'k--s'),
+            ('job_fssdJ5q_imqb2_optv', 'FSSD-IMQ-2', 'k-->'),
+            ('job_fssdJ5q_imqb3_optv', 'FSSD-IMQ-3', 'k-.*'),
+            ('job_fssdJ5q_imq_opt', 'FSSD-IMQ', 'y-x'),
+            ('job_fssdJ5q_imq_optbv', 'FSSD-IMQ-bv', 'y--d'),
             ('job_fssdJ10q_opt', 'FSSD-opt', 'k-s'),
+
             ('job_fssdJ5p_opt', 'FSSD-opt J5', 'm-s'),
             ('job_fssdp_opt', 'FSSDp-opt', 'm-s'),
             ('job_fssdJ10p_opt', 'FSSDp-opt J10', 'k-s'),
@@ -31,6 +38,7 @@ def get_func_tuples():
             ('job_me_opt', 'ME-opt', 'b-d'),
 
             ('job_kstein_med', 'KSD', 'g-o'),
+            ('job_kstein_imq', 'KSD-IMQ', 'c-*'),
             ('job_lin_kstein_med', 'LKS', 'g-.h'),
             ('job_mmd_med', 'MMD', 'm--^'),
             ('job_mmd_opt', 'MMD-opt', 'm-<'),
@@ -93,8 +101,41 @@ def plot_2d_data(pdata):
     plt.title(pdata.label)
     return fig
 
+class PlotValues(object):
+    """
+    An object encapsulating values of a plot where there are many curves, 
+    each corresponding to one method, with common x-axis values.
+    """
+    def __init__(self, xvalues, methods, plot_matrix):
+        """
+        xvalues: 1d numpy array of x-axis values
+        methods: a list of method names
+        plot_matrix: len(methods) x len(xvalues) 2d numpy array containing 
+            values that can be used to plot
+        """
+        self.xvalues = xvalues
+        self.methods = methods
+        self.plot_matrix = plot_matrix
 
-def plot_prob_reject(ex, fname, func_xvalues, xlabel, func_title=None):
+    def ascii_table(self, tablefmt="pipe"):
+        """
+        Return an ASCII string representation of the table.
+
+        tablefmt: "plain", "fancy_grid", "grid", "simple" might be useful.
+        """
+        methods = self.methods
+        xvalues = self.xvalues
+        plot_matrix = self.plot_matrix
+
+        import tabulate
+        # https://pypi.python.org/pypi/tabulate
+        aug_table = np.hstack((np.array(methods)[:, np.newaxis], plot_matrix))
+        return tabulate.tabulate(aug_table, xvalues, tablefmt=tablefmt)
+
+# end of class PlotValues
+
+def plot_prob_reject(ex, fname, func_xvalues, xlabel, func_title=None, 
+        return_plot_values=False):
     """
     plot the empirical probability that the statistic is above the threshold.
     This can be interpreted as type-1 error (when H0 is true) or test power 
@@ -106,6 +147,8 @@ def plot_prob_reject(ex, fname, func_xvalues, xlabel, func_title=None):
         to be used for the x-axis values.            
     - xlabel: label of the x-axis. 
     - func_title: a function: results dictionary -> title of the plot
+    - return_plot_values: if true, also return a PlotValues as the second
+      output value.
 
     Return loaded results
     """
@@ -126,6 +169,8 @@ def plot_prob_reject(ex, fname, func_xvalues, xlabel, func_title=None):
     # {'test_result': (dict from running perform_test(te) '...':..., }
     rejs = vf_pval(results['job_results'])
     repeats, _, n_methods = results['job_results'].shape
+
+    # yvalues (corresponding to xvalues) x #methods
     mean_rejs = np.mean(rejs, axis=0)
     #print mean_rejs
     #std_pvals = np.std(rejs, axis=0)
@@ -140,11 +185,13 @@ def plot_prob_reject(ex, fname, func_xvalues, xlabel, func_title=None):
     method_labels = get_func2label_map()
     
     func_names = [f.__name__ for f in results['method_job_funcs'] ]
+    plotted_methods = []
     for i in range(n_methods):    
         te_proportion = 1.0 - results['tr_proportion']
         fmt = line_styles[func_names[i]]
         #plt.errorbar(ns*te_proportion, mean_rejs[:, i], std_pvals[:, i])
         method_label = method_labels[func_names[i]]
+        plotted_methods.append(method_label)
         plt.plot(xvalues, mean_rejs[:, i], fmt, label=method_label)
     '''
     else:
@@ -160,7 +207,7 @@ def plot_prob_reject(ex, fname, func_xvalues, xlabel, func_title=None):
     ylabel = 'Rejection rate'
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
-    plt.xticks( np.hstack((xvalues) ))
+    plt.xticks(np.hstack((xvalues) ))
     
     alpha = results['alpha']
     plt.legend(loc='best')
@@ -168,7 +215,11 @@ def plot_prob_reject(ex, fname, func_xvalues, xlabel, func_title=None):
             repeats, alpha) if func_title is None else func_title(results)
     plt.title(title)
     plt.grid()
-    return results
+    if return_plot_values:
+        return results, PlotValues(xvalues=xvalues, methods=plotted_methods,
+                plot_matrix=mean_rejs.T)
+    else:
+        return results
         
 
 def plot_runtime(ex, fname, func_xvalues, xlabel, func_title=None):

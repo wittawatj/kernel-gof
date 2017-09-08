@@ -63,6 +63,15 @@ def dist_matrix(X, Y):
     D = np.sqrt(D2)
     return D
 
+def dist2_matrix(X, Y):
+    """
+    Construct a pairwise Euclidean distance **squared** matrix of size
+    X.shape[0] x Y.shape[0]
+    """
+    sx = np.sum(X**2, 1)
+    sy = np.sum(Y**2, 1)
+    D2 =  sx[:, np.newaxis] - 2.0*np.dot(X, Y.T) + sy[np.newaxis, :] 
+    return D2
 
 def meddistance(X, subsample=None, mean_on_fail=True):
     """
