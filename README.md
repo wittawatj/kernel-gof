@@ -41,6 +41,56 @@ can also be viewed on the web. There are many Jupyter notebooks in `ipynb`
 folder demonstrating other implemented tests. Be sure to check them if you
 would like to explore.
 
+## Reproduce experimental results
+
+Each experiment is defined in its own Python file with a name starting with
+`exXX` where `XX` is a number. All the experiment files are in `kgof/ex`
+folder. Each file is runnable with a command line argument. For example in
+`ex1_vary_n.py`, we aim to check the test power of each testing algorithm
+as a function of the sample size `n`. The script `ex1_vary_n.py` takes a
+dataset name as its argument. See `run_ex1.sh` which is a standalone Bash
+script on how to execute  `ex1_power_vs_n.py`.
+
+We used [independent-jobs](https://github.com/karlnapf/independent-jobs)
+package to parallelize our experiments over a
+[Slurm](http://slurm.schedmd.com/) cluster (the package is not needed if you
+just need to use our developed tests). For example, for
+`ex1_vary_n.py`, a job is created for each combination of 
+
+    (dataset, test algorithm, n, trial)
+
+If you do not use Slurm, you can change the line 
+
+    engine = SlurmComputationEngine(batch_parameters)
+
+to 
+
+    engine = SerialComputationEngine()
+
+which will instruct the computation engine to just use a normal for-loop on a
+single machine (will take a lot of time). Other computation engines that you
+use might be supported. See  [independent-jobs's repository
+page](https://github.com/karlnapf/independent-jobs).  Running simulation will
+create a lot of result files (one for each tuple above) saved as Pickle. Also,
+the `independent-jobs` package requires a scratch folder to save temporary
+files for communication among computing nodes. Path to the folder containing
+the saved results can be specified in `kgof/config.py` by changing the value of
+`expr_results_path`:
+
+    # Full path to the directory to store experimental results.
+    'expr_results_path': '/full/path/to/where/you/want/to/save/results/',
+
+The scratch folder needed by the `independent-jobs` package can be specified in
+the same file by changing the value of `scratch_path`
+
+    # Full path to the directory to store temporary files when running experiments
+    'scratch_path': '/full/path/to/a/temporary/folder/',
+
+To plot the results, see the experiment's corresponding Jupyter notebook in the
+`ipynb/` folder. For example, for `ex1_vary_n.py` see `ipynb/ex1_results.ipynb`
+to plot the results.
+
+
 ## Some note
 
 * When adding a new `Kernel` or new `UnnormalizedDensity`, use `np.dot(X, Y)`

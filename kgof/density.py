@@ -39,6 +39,11 @@ def from_grad_log(d, g):
 
 class UnnormalizedDensity(object):
     __metaclass__ = ABCMeta
+    """
+    An abstract class of an unnormalized probability density function.  This is
+    intended to be used to represent a model of the data for goodness-of-fit
+    testing.
+    """
 
     @abstractmethod
     def log_den(self, X):
