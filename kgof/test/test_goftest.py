@@ -57,6 +57,80 @@ class TestFSSD(unittest.TestCase):
                 self.assertGreaterEqual(tresult['pvalue'], 0)
                 self.assertLessEqual(tresult['pvalue'], 1)
 
+    def test_optimized_fssd(self):
+        """
+        Test FSSD test with parameter optimization.
+        """
+        seed = 4
+        # sample size
+        n = 179 
+        alpha = 0.01
+        for d in [1, 3]:
+            mean = np.zeros(d)
+            variance = 1.0
+            p = density.IsotropicNormal(mean, variance)
+            # Mean difference. obvious reject
+            ds = data.DSIsotropicNormal(mean+4, variance+0)
+            dat = ds.sample(n, seed=seed)
+            # test 
+            for J in [1, 4]:
+                opts = {
+                    'reg': 1e-2,
+                    'max_iter': 10, 
+                    'tol_fun':1e-3, 
+                    'disp':False
+                }
+                tr, te = dat.split_tr_te(tr_proportion=0.3, seed=seed+1)
+
+                Xtr = tr.X
+                gwidth0 = util.meddistance(Xtr, subsample=1000)**2
+                # random test locations
+                V0 = util.fit_gaussian_draw(Xtr, J, seed=seed+1)
+                V_opt, gw_opt, opt_result = \
+                gof.GaussFSSD.optimize_locs_widths(p, tr, gwidth0, V0, **opts)
+
+                # construct a test
+                k_opt = kernel.KGauss(gw_opt)
+                null_sim = gof.FSSDH0SimCovObs(n_simulate=2000, seed=10)
+                fssd_opt = gof.FSSD(p, k_opt, V_opt, null_sim=null_sim, alpha=alpha)
+                fssd_opt_result = fssd_opt.perform_test(te, return_simulated_stats=True)
+                assert fssd_opt_result['h0_rejected']
+
+    def test_auto_init_opt_fssd(self):
+        """
+        Test FSSD-opt test with automatic parameter initialization.
+        """
+        seed = 5
+        # sample size
+        n = 191 
+        alpha = 0.01
+        for d in [1, 4]:
+            mean = np.zeros(d)
+            variance = 1.0
+            p = density.IsotropicNormal(mean, variance)
+            # Mean difference. obvious reject
+            ds = data.DSIsotropicNormal(mean+4, variance+0)
+            dat = ds.sample(n, seed=seed)
+            # test 
+            for J in [1, 3]:
+                opts = {
+                    'reg': 1e-2,
+                    'max_iter': 10, 
+                    'tol_fun': 1e-3, 
+                    'disp':False
+                }
+                tr, te = dat.split_tr_te(tr_proportion=0.3, seed=seed+1)
+
+                V_opt, gw_opt, opt_result = \
+                gof.GaussFSSD.optimize_auto_init(p, tr, J, **opts)
+
+                # construct a test
+                k_opt = kernel.KGauss(gw_opt)
+                null_sim = gof.FSSDH0SimCovObs(n_simulate=2000, seed=10)
+                fssd_opt = gof.FSSD(p, k_opt, V_opt, null_sim=null_sim, alpha=alpha)
+                fssd_opt_result = fssd_opt.perform_test(te, return_simulated_stats=True)
+                assert fssd_opt_result['h0_rejected']
+
     def test_ustat_h1_mean_variance(self):
         seed = 20
         # sample

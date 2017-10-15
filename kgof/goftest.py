@@ -435,8 +435,8 @@ class FSSD(GofTest):
         objs = np.zeros(n_cand)
         for i in xrange(n_cand):
             ki = list_kernel[i]
-            obj = FSSD.power_criterion(p, dat, ki, test_locs)
-            logging.info('(%d), obj: %5.4g, k: %s' %(i, obj, str(ki)))
+            objs[i] = FSSD.power_criterion(p, dat, ki, test_locs)
+            logging.info('(%d), obj: %5.4g, k: %s' %(i, objs[i], str(ki)))
 
         #Widths that come early in the list 
         # are preferred if test powers are equal.
@@ -446,6 +446,7 @@ class FSSD(GofTest):
 
 # end of FSSD
 # --------------------------------------
+
 class GaussFSSD(FSSD):
     """
     FSSD using an isotropic Gaussian kernel.

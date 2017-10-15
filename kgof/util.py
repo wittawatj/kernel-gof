@@ -251,12 +251,16 @@ def outer_rows(X, Y):
 
     Return an n x dx x dy numpy array.
     """
-    n, dx = X.shape
-    dy = Y.shape[1]
-    X_col_rep = X[:, np.tile(range(dx), (dy, 1)).T.reshape(-1) ]
-    Y_tile = np.tile(Y, (1, dx))
-    Z = X_col_rep*Y_tile
-    return np.reshape(Z, (n, dx, dy))
+
+    # Matlab way to do this. According to Jonathan Huggins, this is not
+    # efficient. Use einsum instead. See below.
+    #n, dx = X.shape
+    #dy = Y.shape[1]
+    #X_col_rep = X[:, np.tile(range(dx), (dy, 1)).T.reshape(-1) ]
+    #Y_tile = np.tile(Y, (1, dx))
+    #Z = X_col_rep*Y_tile
+    #return np.reshape(Z, (n, dx, dy))
+    return np.einsum('ij,ik->ijk', X, Y)
 
 def randn(m, n, seed=3):
     with NumpySeedContext(seed=seed):
