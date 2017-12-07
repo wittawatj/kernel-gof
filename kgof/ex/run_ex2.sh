@@ -13,7 +13,7 @@ screen -AdmS ex2_kgof -t tab0 bash
 
 
 #screen -S ex2_kgof -X screen -t tab6 bash -lic "python ex2_prob_params.py gbrbm_dx50_dh10"
-#screen -S ex2_kgof -X screen -t tab6 bash -lic "python ex2_prob_params.py gbrbm_dx50_dh40"
-screen -S ex2_kgof -X screen -t tab7 bash -lic "python ex2_prob_params.py glaplace"
+screen -S ex2_kgof -X screen -t tab6 bash -lic "python ex2_prob_params.py gbrbm_dx50_dh40"
+#screen -S ex2_kgof -X screen -t tab7 bash -lic "python ex2_prob_params.py glaplace"
 
 

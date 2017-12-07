@@ -264,3 +264,49 @@ def plot_runtime(ex, fname, func_xvalues, xlabel, func_title=None):
     return results
 
 
+def box_meshgrid(func, xbound, ybound, nx=50, ny=50):
+    """
+    Form a meshed grid (to be used with a contour plot) on a box
+    specified by xbound, ybound. Evaluate the grid with [func]: (n x 2) -> n.
+    
+    - xbound: a tuple (xmin, xmax)
+    - ybound: a tuple (ymin, ymax)
+    - nx: number of points to evluate in the x direction
+    
+    return XX, YY, ZZ where XX is a 2D nd-array of size nx x ny
+    """
+    
+    # form a test location grid to try 
+    minx, maxx = xbound
+    miny, maxy = ybound
+    loc0_cands = np.linspace(minx, maxx, nx)
+    loc1_cands = np.linspace(miny, maxy, ny)
+    lloc0, lloc1 = np.meshgrid(loc0_cands, loc1_cands)
+    # nd1 x nd0 x 2
+    loc3d = np.dstack((lloc0, lloc1))
+    # #candidates x 2
+    all_loc2s = np.reshape(loc3d, (-1, 2) )
+    # evaluate the function
+    func_grid = func(all_loc2s)
+    func_grid = np.reshape(func_grid, (ny, nx))
+    
+    assert lloc0.shape[0] == ny
+    assert lloc0.shape[1] == nx
+    assert np.all(lloc0.shape == lloc1.shape)
+    
+    return lloc0, lloc1, func_grid
+
+def get_density_cmap():
+    """
+    Return a colormap for plotting the model density p.
+    Red = high density 
+    white = very low density.
+    Varying from white (low) to red (high).
+    """
+    # Add completely white color to Reds colormap in Matplotlib
+    list_colors = plt.cm.datad['Reds']
+    list_colors = list(list_colors)
+    list_colors.insert(0, (1, 1, 1))
+    list_colors.insert(0, (1, 1, 1))
+    lscm = matplotlib.colors.LinearSegmentedColormap.from_list("my_Reds", list_colors)
+    return lscm

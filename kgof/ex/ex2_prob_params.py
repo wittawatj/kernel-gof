@@ -528,6 +528,11 @@ reps = 200
 method_job_funcs = [ 
         job_fssdJ5q_opt,
         job_fssdJ5q_med, 
+        job_kstein_med, 
+        job_lin_kstein_med,
+        job_mmd_opt,
+        job_me_opt,
+
         #job_fssdJ5q_imq_opt,
         #job_fssdJ5q_imq_optv,
         #job_fssdJ5q_imq_optbv,
@@ -537,12 +542,8 @@ method_job_funcs = [
         #job_fssdJ10q_opt,
         #job_fssdJ5p_opt,
         #job_fssdJ10p_opt,
-        job_kstein_med, 
         #job_kstein_imq,
-        job_lin_kstein_med,
         #job_mmd_med,
-        job_mmd_opt,
-        job_me_opt,
        ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current

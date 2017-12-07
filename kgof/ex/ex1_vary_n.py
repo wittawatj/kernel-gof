@@ -426,23 +426,24 @@ alpha = 0.05
 tr_proportion = 0.2
 
 # repetitions for each sample size 
-reps = 100
+reps = 200
 
 # tests to try
 method_job_funcs = [ 
-        job_fssdJ5q_opt, 
-        job_fssdJ5q_med, 
-        #job_fssdJ5q_imq_optv,
-        #job_fssdJ10q_opt,
-        job_kstein_med,
-        #job_kstein_imq,
-        job_lin_kstein_med,
-        job_mmd_opt,
-        #job_mmd_dgauss_opt,
+    job_fssdJ5q_opt, 
+    #job_fssdJ5q_med, 
+    #job_me_opt,
+    #job_kstein_med,
+    #job_lin_kstein_med,
+    job_mmd_opt,
 
-        #job_mmd_med,
-        job_me_opt,
-       ]
+    #job_fssdJ5q_imq_optv,
+    #job_fssdJ10q_opt,
+    #job_kstein_imq,
+    #job_mmd_dgauss_opt,
+
+    #job_mmd_med,
+   ]
 
 # If is_rerun==False, do not rerun the experiment if a result file for the current
 # setting of (ni, r) already exists.

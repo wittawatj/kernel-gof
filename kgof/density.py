@@ -187,7 +187,7 @@ class Normal(UnnormalizedDensity):
             raise ValueError('covariance matrix is not full rank.')
         # The precision matrix
         self.prec = np.dot(np.dot(V, np.diag(1.0/E)), V.T)
-        print self.prec
+        #print self.prec
 
     def log_den(self, X):
         mean = self.mean 
@@ -232,6 +232,9 @@ class IsoGaussianMixture(UnnormalizedDensity):
         self.variances = variances
 
     def log_den(self, X):
+        return self.log_normalized_den(X)
+
+    def log_normalized_den(self, X):
         pmix = self.pmix
         means = self.means
         variances = self.variances
@@ -244,6 +247,7 @@ class IsoGaussianMixture(UnnormalizedDensity):
             den = den + norm_den_i*pmix[i]
         return np.log(den)
 
+ 
     #def grad_log(self, X):
     #    """
     #    Return an n x d numpy array of gradients.

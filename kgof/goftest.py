@@ -308,12 +308,19 @@ class FSSD(GofTest):
         return Xi
 
     @staticmethod
-    def power_criterion(p, dat, k, test_locs, reg=1e-2, use_unbiased=True):
+    def power_criterion(p, dat, k, test_locs, reg=1e-2, use_unbiased=True, 
+            use_2terms=False):
         """
         Compute the mean and standard deviation of the statistic under H1.
         Return mean/sd.
+        use_2terms: True if the objective should include the first term in the power 
+            expression. This term carries the test threshold and is difficult to 
+            compute (depends on the optimized test locations). If True, then 
+            the objective will be -1/(n**0.5*sigma_H1) + n**0.5 FSSD^2/sigma_H1, 
+            which ignores the test threshold in the first term.
         """
         X = dat.data()
+        n = X.shape[0]
         V = test_locs
         fssd = FSSD(p, k, V, null_sim=None)
         fea_tensor = fssd.feature_tensor(X)
@@ -321,7 +328,13 @@ class FSSD(GofTest):
                 return_variance=True, use_unbiased=use_unbiased)
 
         # mean/sd criterion 
-        obj = u_mean/np.sqrt(u_variance + reg) 
+        sigma_h1 = np.sqrt(u_variance + reg)
+        ratio = u_mean/sigma_h1 
+        if use_2terms:
+            obj = -1.0/(np.sqrt(n)*sigma_h1) + np.sqrt(n)*ratio
+            #print obj
+        else:
+            obj = ratio
         return obj
 
     @staticmethod
@@ -339,13 +352,14 @@ class FSSD(GofTest):
         Return the mean [and the variance]
         """
         Xi = fea_tensor
+        n, d, J = Xi.shape
         #print 'Xi'
         #print Xi
         #assert np.all(util.is_real_num(Xi))
-        n = Xi.shape[0]
         assert n > 1, 'Need n > 1 to compute the mean of the statistic.'
         # n x d*J
-        Tau = Xi.reshape(n, -1)
+        # Tau = Xi.reshape(n, d*J)
+        Tau = np.reshape(Xi, [n, d*J])
         if use_unbiased:
             t1 = np.sum(np.mean(Tau, 0)**2)*(n/float(n-1))
             t2 = np.sum(np.mean(Tau**2, 0))/float(n-1)
@@ -457,9 +471,16 @@ class GaussFSSD(FSSD):
         super(GaussFSSD, self).__init__(p, k, V, null_sim, alpha)
 
     @staticmethod 
-    def power_criterion(p, dat, gwidth, test_locs, reg=1e-2):
+    def power_criterion(p, dat, gwidth, test_locs, reg=1e-2, use_2terms=False):
+        """
+        use_2terms: True if the objective should include the first term in the power 
+            expression. This term carries the test threshold and is difficult to 
+            compute (depends on the optimized test locations). If True, then 
+            the objective will be -1/(n**0.5*sigma_H1) + n**0.5 FSSD^2/sigma_H1, 
+            which ignores the test threshold in the first term.
+        """
         k = kernel.KGauss(gwidth)
-        return FSSD.power_criterion(p, dat, k, test_locs, reg)
+        return FSSD.power_criterion(p, dat, k, test_locs, reg, use_2terms=use_2terms)
 
     @staticmethod
     def optimize_auto_init(p, dat, J, **ops):
@@ -516,7 +537,7 @@ class GaussFSSD(FSSD):
     @staticmethod
     def optimize_locs_widths(p, dat, gwidth0, test_locs0, reg=1e-2,
             max_iter=100,  tol_fun=1e-5, disp=False, locs_bounds_frac=100,
-            gwidth_lb=None, gwidth_ub=None,
+            gwidth_lb=None, gwidth_ub=None, use_2terms=False,
             ):
         """
         Optimize the test locations and the Gaussian kernel width by 
@@ -537,6 +558,9 @@ class GaussFSSD(FSSD):
             multiplied by this number.
         - gwidth_lb: absolute lower bound on the Gaussian width^2
         - gwidth_ub: absolute upper bound on the Gaussian width^2
+        - use_2terms: If True, then besides the signal-to-noise ratio
+          criterion, the objective function will also include the first term
+          that is dropped.
 
         #- If the lb, ub bounds are None, use fraction of the median heuristics 
         #    to automatically set the bounds.
@@ -550,7 +574,8 @@ class GaussFSSD(FSSD):
         # Parameterize the Gaussian width with its square root (then square later)
         # to automatically enforce the positivity.
         def obj(sqrt_gwidth, V):
-            return -GaussFSSD.power_criterion(p, dat, sqrt_gwidth**2, V, reg=reg)
+            return -GaussFSSD.power_criterion(
+                    p, dat, sqrt_gwidth**2, V, reg=reg, use_2terms=use_2terms)
         flatten = lambda gwidth, V: np.hstack((gwidth, V.reshape(-1)))
         def unflatten(x):
             sqrt_gwidth = x[0]
@@ -723,7 +748,7 @@ class IMQFSSD(FSSD):
         def obj(V):
             return -IMQFSSD.power_criterion(p, dat, b, c, V, reg=reg)
 
-        flatten = lambda V: V.reshape(-1)
+        flatten = lambda V: np.reshape(V, -1)
 
         def unflatten(x):
             V = np.reshape(x, (J, d))
