@@ -1,6 +1,11 @@
 
 """Module containing kernel related classes"""
+from __future__ import division
 
+from builtins import str
+from past.utils import old_div
+from builtins import object
+from future.utils import with_metaclass
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
@@ -10,9 +15,8 @@ import autograd.numpy as np
 import kgof.config as config
 import kgof.util as util
 
-class Kernel(object):
+class Kernel(with_metaclass(ABCMeta, object)):
     """Abstract class for kernels. Inputs to all methods are numpy arrays."""
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def eval(self, X, Y):
@@ -35,13 +39,12 @@ class Kernel(object):
         pass
 
 
-class KSTKernel(Kernel):
+class KSTKernel(with_metaclass(ABCMeta, Kernel)):
     """
     Interface specifiying methods a kernel has to implement to be used with 
     the Kernelized Stein discrepancy test of Chwialkowski et al., 2016 and 
     Liu et al., 2016 (ICML 2016 papers) See goftest.KernelSteinTest.
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def gradX_Y(self, X, Y, dim):
@@ -83,13 +86,12 @@ class KSTKernel(Kernel):
 
 # end KSTKernel
     
-class LinearKSTKernel(Kernel):
+class LinearKSTKernel(with_metaclass(ABCMeta, Kernel)):
     """
     Interface specifiying methods a kernel has to implement to be used with 
     the linear-time version of Kernelized Stein discrepancy test of 
     Liu et al., 2016 (ICML 2016).
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def pair_gradX_Y(self, X, Y):
@@ -131,9 +133,7 @@ class LinearKSTKernel(Kernel):
         """
         raise NotImplementedError()
 
-class DifferentiableKernel(Kernel):
-    __metaclass__ = ABCMeta
-
+class DifferentiableKernel(with_metaclass(ABCMeta, Kernel)):
     def gradX_y(self, X, y):
         """
         Compute the gradient with respect to X (the first argument of the
@@ -174,16 +174,16 @@ class KDiagGauss(Kernel):
         width^2) and using the standard Gaussian kernel.
         """
         sigma2s = self.sigma2s
-        Xs = X/np.sqrt(sigma2s)
-        Ys = Y/np.sqrt(sigma2s)
+        Xs = old_div(X,np.sqrt(sigma2s))
+        Ys = old_div(Y,np.sqrt(sigma2s))
         k = KGauss(1.0)
         return k.eval(Xs, Ys)
 
     def pair_eval(self, X, Y):
         """Evaluate k(x1, y1), k(x2, y2), ..."""
         sigma2s = self.sigma2s
-        Xs = X/np.sqrt(sigma2s)
-        Ys = Y/np.sqrt(sigma2s)
+        Xs = old_div(X,np.sqrt(sigma2s))
+        Ys = old_div(Y,np.sqrt(sigma2s))
         k = KGauss(1.0)
         return k.pair_eval(Xs, Ys)
 
@@ -315,7 +315,7 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
         sumx2 = np.reshape(np.sum(X**2, 1), (-1, 1))
         sumy2 = np.reshape(np.sum(Y**2, 1), (1, -1))
         D2 = sumx2 - 2*np.dot(X, Y.T) + sumy2
-        K = np.exp(-D2/(2.0*self.sigma2))
+        K = np.exp(old_div(-D2,(2.0*self.sigma2)))
         return K
 
     def gradX_Y(self, X, Y, dim):
@@ -391,8 +391,8 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
         d = d1
         sigma2 = self.sigma2
         D2 = np.sum(X**2, 1)[:, np.newaxis] - 2*np.dot(X, Y.T) + np.sum(Y**2, 1)
-        K = np.exp(-D2/(2.0*sigma2))
-        G = K/sigma2*(d - D2/sigma2)
+        K = np.exp(old_div(-D2,(2.0*sigma2)))
+        G = K/sigma2*(d - old_div(D2,sigma2))
         return G
 
     def pair_gradXY_sum(self, X, Y):
@@ -408,8 +408,8 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
         d = X.shape[1]
         sigma2 = self.sigma2
         D2 = np.sum( (X-Y)**2, 1)
-        Kvec = np.exp(-D2/(2.0*self.sigma2))
-        G = Kvec/sigma2*(d - D2/sigma2)
+        Kvec = np.exp(old_div(-D2,(2.0*self.sigma2)))
+        G = Kvec/sigma2*(d - old_div(D2,sigma2))
         return G
 
 
@@ -430,7 +430,7 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
         assert n1==n2, 'Two inputs must have the same number of instances'
         assert d1==d2, 'Two inputs must have the same dimension'
         D2 = np.sum( (X-Y)**2, 1)
-        Kvec = np.exp(-D2/(2.0*self.sigma2))
+        Kvec = np.exp(old_div(-D2,(2.0*self.sigma2)))
         return Kvec
 
     def __str__(self):

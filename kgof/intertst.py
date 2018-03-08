@@ -7,6 +7,7 @@ freqopttest https://github.com/wittawatj/interpretable-test
 
 """
 
+from builtins import str
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod

@@ -10,6 +10,7 @@ providing an implementation to the MMD test.
 
 """
 
+from builtins import str
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod

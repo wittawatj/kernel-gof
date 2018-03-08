@@ -3,6 +3,9 @@
 [![Build Status](https://travis-ci.org/wittawatj/kernel-gof.svg?branch=master)](https://travis-ci.org/wittawatj/kernel-gof)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wittawatj/kernel-gof/blob/master/LICENSE)
 
+**UPDATE**: On 8th Mar 2018, we have updated the code to support Python 3 (with
+`futurize`). If you find any problem, please let us know. Thanks.
+
 This repository contains a Python 2.7 implementation of the nonparametric
 linear-time goodness-of-fit test described in  [our paper](https://arxiv.org/abs/1705.07673)
 

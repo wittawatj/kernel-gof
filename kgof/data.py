@@ -1,7 +1,13 @@
 """
 Module containing data structures for representing datasets.
 """
+from __future__ import print_function
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
+from builtins import object
+from future.utils import with_metaclass
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
@@ -23,8 +29,8 @@ class Data(object):
         self.X = X
 
         if not np.all(np.isfinite(X)):
-            print 'X:'
-            print util.fullprint(X)
+            print('X:')
+            print(util.fullprint(X))
             raise ValueError('Not all elements in X are finite.')
 
     def __str__(self):
@@ -96,12 +102,11 @@ class Data(object):
 ### end Data class        
 
 
-class DataSource(object):
+class DataSource(with_metaclass(ABCMeta, object)):
     """
     A source of data allowing resampling. Subclasses may prefix 
     class names with DS. 
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def sample(self, n, seed):
@@ -180,7 +185,7 @@ class DSIsoGaussianMixture(DataSource):
             raise ValueError('Number of components in means and variances do not match.')
 
         if pmix is None:
-            pmix = np.ones(k)/float(k)
+            pmix = old_div(np.ones(k),float(k))
 
         if np.abs(np.sum(pmix) - 1) > 1e-8:
             raise ValueError('Mixture weights do not sum to 1.')
@@ -288,7 +293,7 @@ class DSGaussBernRBM(DataSource):
         """
         x: a numpy array.
         """
-        return 1.0/(1+np.exp(-x))
+        return old_div(1.0,(1+np.exp(-x)))
 
     def _blocked_gibbs_next(self, X, H):
         """
@@ -308,7 +313,7 @@ class DSGaussBernRBM(DataSource):
         assert np.all(np.abs(H) - 1 <= 1e-6 )
         # Draw X.
         # mean: n x dx
-        mean = np.dot(H, B.T)/2.0 + b
+        mean = old_div(np.dot(H, B.T),2.0) + b
         X = np.random.randn(n, dx) + mean
         return X, H
 
@@ -357,7 +362,7 @@ class DSISIPoissonLinear(DataSource):
         if np.abs(b) <= 1e-8:
             F_l = -np.log(1-u)
         else:
-            F_l = np.sqrt(-2.0/b*np.log(1-u)+1.0/(b**2))-1.0/b
+            F_l = np.sqrt(-2.0/b*np.log(1-u)+old_div(1.0,(b**2)))-old_div(1.0,b)
         return F_l
         
     def sample(self, n, seed=3):
@@ -385,7 +390,7 @@ class DSISIPoissonSine(DataSource):
         self.delta = delta
         
     def func(self,t):
-        val = (t + (1-np.cos(self.w*t))/self.w )*self.b
+        val = (t + old_div((1-np.cos(self.w*t)),self.w) )*self.b
         return val
     
     # slow step-by-step increment by assigned delta
@@ -411,18 +416,18 @@ class DSISIPoissonSine(DataSource):
                 val_old = val_new
                 val_new = self.func(t_new)
             elif val_new < x and t_old > t_new:
-                temp = (t_old + t_new) / 2.0
+                temp = old_div((t_old + t_new), 2.0)
                 t_old = t_new
                 t_new = temp
                 val_old = val_new
                 val_new = self.func(t_new)
             elif val_new > x and t_old > t_new:
                 t_old = t_new
-                t_new = t_new / 2.0
+                t_new = old_div(t_new, 2.0)
                 val_old = val_new
                 val_new = self.func(t_new)
             elif val_new > x and t_old < t_new:
-                temp = (t_old + t_new) / 2.0
+                temp = old_div((t_old + t_new), 2.0)
                 t_old = t_new
                 t_new = temp
                 val_old = val_new
@@ -463,7 +468,7 @@ class DSGamma(DataSource):
 
     def sample(self, n, seed=3):
         with util.NumpySeedContext(seed=seed):
-            X = stats.gamma.rvs(self.alpha, size=n, scale = 1.0/self.beta)
+            X = stats.gamma.rvs(self.alpha, size=n, scale = old_div(1.0,self.beta))
             if len(X.shape) ==1:
                 # This can happen if d=1
                 X = X[:, np.newaxis]
@@ -486,7 +491,7 @@ class DSLogGamma(DataSource):
 
     def sample(self, n, seed=3):
         with util.NumpySeedContext(seed=seed):
-            X = np.log(stats.gamma.rvs(self.alpha, size=n, scale = 1.0/self.beta))
+            X = np.log(stats.gamma.rvs(self.alpha, size=n, scale = old_div(1.0,self.beta)))
             if len(X.shape) ==1:
                 # This can happen if d=1
                 X = X[:, np.newaxis]
@@ -513,7 +518,7 @@ class DSISILogPoissonLinear(DataSource):
         if np.abs(b) <= 1e-8:
             F_l = -np.log(1-u)
         else:
-            F_l = np.sqrt(-2.0/b*np.log(1-u)+1.0/(b**2))-1.0/b
+            F_l = np.sqrt(-2.0/b*np.log(1-u)+old_div(1.0,(b**2)))-old_div(1.0,b)
         return F_l
         
     def sample(self, n, seed=3):
@@ -564,7 +569,7 @@ class DSISIPoisson2D(DataSource):
         X = np.random.rand(N,2)
         intensity = self.intensity(X)
         u = np.random.rand(N)
-        lamb_T = intensity/lamb_bar
+        lamb_T = old_div(intensity,lamb_bar)
         X_acc = X[u < lamb_T]
         return X_acc
 
@@ -619,13 +624,13 @@ class DSISISigmoidPoisson2D(DataSource):
         X = np.random.rand(N,2)
         intensity = self.intensity(X)
         u = np.random.rand(N)
-        lamb_T = intensity/lamb_bar
+        lamb_T = old_div(intensity,lamb_bar)
         X_acc = X[u < lamb_T]
         return X_acc
 
     def sample(self, n, seed=3):
         with util.NumpySeedContext(seed=seed):
-            X = np.log(1/self.inh2d(lamb_bar=n)-1)
+            X = np.log(old_div(1,self.inh2d(lamb_bar=n))-1)
             if len(X.shape) ==1:
                 # This can happen if d=1
                 X = X[:, np.newaxis]
@@ -649,7 +654,7 @@ class DSPoisson2D(DataSource):
             mean = np.random.randn(n,d)*10
         if w is None:
             w = np.random.rand(n)
-        w = w/sum(w)
+        w = old_div(w,sum(w))
         multi = np.random.multinomial(N,w)
         X = np.zeros((N,d))
         base = 0
@@ -672,7 +677,7 @@ class DSPoisson2D(DataSource):
     def rej_sample(self, X, llh, func = None):
         if func is None:
             self.func = self.lamb_sin
-        rate = self.func(X)/llh
+        rate = old_div(self.func(X),llh)
         u = np.random.rand(len(X))
         X_acc = X[u < rate]
         return X_acc
@@ -745,11 +750,11 @@ class DSGaussCosFreqs(DataSource):
             while from_ind < n:
                 # The proposal q is N(0, sigma2*I)
                 X = np.random.randn(block_size, d)*np.sqrt(sigma2)
-                q_un = np.exp(-np.sum(X**2, 1)/(2.0*sigma2))
+                q_un = np.exp(old_div(-np.sum(X**2, 1),(2.0*sigma2)))
                 # unnormalized density p
                 p_un = q_un*(1+np.prod(np.cos(X*freqs), 1))
                 c = 2.0
-                I = stats.uniform.rvs(size=block_size) < p_un/(c*q_un)
+                I = stats.uniform.rvs(size=block_size) < old_div(p_un,(c*q_un))
 
                 # accept 
                 accepted_count = np.sum(I)

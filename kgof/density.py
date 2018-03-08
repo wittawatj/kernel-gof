@@ -2,7 +2,12 @@
 Module containing implementations of some unnormalized probability density 
 functions.
 """
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
+from builtins import object
+from future.utils import with_metaclass
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
@@ -37,8 +42,7 @@ def from_grad_log(d, g):
     return UDFromCallable(d, fgrad_log=g)
 
 
-class UnnormalizedDensity(object):
-    __metaclass__ = ABCMeta
+class UnnormalizedDensity(with_metaclass(ABCMeta, object)):
     """
     An abstract class of an unnormalized probability density function.  This is
     intended to be used to represent a model of the data for goodness-of-fit
@@ -155,7 +159,7 @@ class IsotropicNormal(UnnormalizedDensity):
     def log_den(self, X):
         mean = self.mean 
         variance = self.variance
-        unden = -np.sum((X-mean)**2, 1)/(2.0*variance)
+        unden = old_div(-np.sum((X-mean)**2, 1),(2.0*variance))
         return unden
 
     def log_normalized_den(self, X):
@@ -186,14 +190,14 @@ class Normal(UnnormalizedDensity):
         if np.any(np.abs(E) <= 1e-7):
             raise ValueError('covariance matrix is not full rank.')
         # The precision matrix
-        self.prec = np.dot(np.dot(V, np.diag(1.0/E)), V.T)
+        self.prec = np.dot(np.dot(V, np.diag(old_div(1.0,E))), V.T)
         #print self.prec
 
     def log_den(self, X):
         mean = self.mean 
         X0 = X - mean
         X0prec = np.dot(X0, self.prec)
-        unden = -np.sum(X0prec*X0, 1)/2.0
+        unden = old_div(-np.sum(X0prec*X0, 1),2.0)
         return unden
 
     def get_datasource(self):
@@ -222,7 +226,7 @@ class IsoGaussianMixture(UnnormalizedDensity):
             raise ValueError('Number of components in means and variances do not match.')
 
         if pmix is None:
-            pmix = np.ones(k)/float(k)
+            pmix = old_div(np.ones(k),float(k))
 
         if np.abs(np.sum(pmix) - 1) > 1e-8:
             raise ValueError('Mixture weights do not sum to 1.')
@@ -272,8 +276,8 @@ class IsoGaussianMixture(UnnormalizedDensity):
         X: n x d 2d-array
         """
         Z = np.sqrt(2.0*np.pi*variance)
-        unden = np.exp(-np.sum((X-mean)**2.0, 1)/(2.0*variance) )
-        den = unden/Z
+        unden = np.exp(old_div(-np.sum((X-mean)**2.0, 1),(2.0*variance)) )
+        den = old_div(unden,Z)
         assert len(den) == X.shape[0]
         return den
 
@@ -336,7 +340,7 @@ class GaussBernRBM(UnnormalizedDensity):
         Y = 0.5*XB + self.c
         E2y = np.exp(2*Y)
         # n x dh
-        Phi = (E2y-1.0)/(E2y+1)
+        Phi = old_div((E2y-1.0),(E2y+1))
         # n x dx
         T = np.dot(Phi, 0.5*self.B.T)
         S = self.b - X + T
@@ -389,7 +393,7 @@ class ISIPoissonSine(UnnormalizedDensity):
     def log_den(self, X):
         b = self.b
         w = self.w
-        unden = np.sum(b*(-X + (np.cos(w*X)-1)/w) + np.log(b*(1+np.sin(w*X))),1)
+        unden = np.sum(b*(-X + old_div((np.cos(w*X)-1),w)) + np.log(b*(1+np.sin(w*X))),1)
         return unden
 
     def dim(self):
@@ -522,7 +526,7 @@ class ISISigmoidPoisson2D(UnnormalizedDensity):
             raise ValueError('Not intensity function found')
 
     def sigmoid(self,x):
-        sig = 1/(1+np.exp(x))
+        sig = old_div(1,(1+np.exp(x)))
         return sig
 
     def quadratic_intensity(self,s,t):
@@ -599,7 +603,7 @@ class GaussCosFreqs(UnnormalizedDensity):
     def log_den(self, X):
         sigma2 = self.sigma2
         freqs = self.freqs
-        log_unden = -np.sum(X**2, 1)/(2.0*sigma2) + 1+np.prod(np.cos(X*freqs), 1)
+        log_unden = old_div(-np.sum(X**2, 1),(2.0*sigma2)) + 1+np.prod(np.cos(X*freqs), 1)
         return log_unden
 
     def dim(self):

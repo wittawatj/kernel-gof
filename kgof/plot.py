@@ -1,5 +1,7 @@
 """Module containing convenient functions for plotting"""
 
+from builtins import range
+from builtins import object
 __author__ = 'wittawat'
 
 import kgof.glo as glo

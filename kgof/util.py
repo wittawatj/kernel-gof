@@ -1,5 +1,9 @@
 """A module containing convenient methods for general machine learning"""
+from __future__ import print_function
+from __future__ import division
 
+from past.utils import old_div
+from builtins import object
 __author__ = 'wittawat'
 
 import autograd.numpy as np
@@ -29,7 +33,7 @@ class ContextTimer(object):
         self.end = time.time()
         self.secs = self.end - self.start 
         if self.verbose:
-            print 'elapsed time: %f ms' % (self.secs*1000)
+            print('elapsed time: %f ms' % (self.secs*1000))
 
 # end class ContextTimer
 
@@ -238,7 +242,7 @@ def standardize(X):
     mx = np.mean(X, 0)
     stdx = np.std(X, axis=0)
     # Assume standard deviations are not 0
-    Zx = (X-mx)/stdx
+    Zx = old_div((X-mx),stdx)
     assert np.all(np.isfinite(Zx))
     return Zx
 

@@ -1,7 +1,14 @@
 """
 Module containing many types of goodness-of-fit test methods.
 """
+from __future__ import division
 
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
+from future.utils import with_metaclass
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
@@ -16,11 +23,10 @@ import matplotlib.pyplot as plt
 import scipy
 import scipy.stats as stats
 
-class GofTest(object):
+class GofTest(with_metaclass(ABCMeta, object)):
     """
     Abstract class for a goodness-of-fit test.
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self, p, alpha):
         """
@@ -53,12 +59,11 @@ class GofTest(object):
 # end of GofTest
 #------------------------------------------------------
 
-class H0Simulator(object):
+class H0Simulator(with_metaclass(ABCMeta, object)):
     """
     An abstract class representing a simulator to draw samples from the 
     null distribution. For some tests, these are needed to conduct the test.
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self, n_simulate, seed):
         """
@@ -164,7 +169,7 @@ class FSSDH0SimCovDraw(H0Simulator):
         # Make sure it is a matrix i.e, np.cov returns a scalar when Tau is
         # 1d.
         #cov = np.cov(Tau.T) + np.zeros((1, 1))
-        cov = Tau.T.dot(Tau)/n + np.zeros((1, 1))
+        cov = old_div(Tau.T.dot(Tau),n) + np.zeros((1, 1))
         n_simulate = self.n_simulate
 
         arr_nfssd, eigs = FSSD.list_simulate_spectral(cov, J, n_simulate,
@@ -303,7 +308,7 @@ class FSSD(GofTest):
         #print grad_logp
         #print 'K'
         #print K
-        Xi = (grad_logp_K + dKdV)/np.sqrt(d*J)
+        Xi = old_div((grad_logp_K + dKdV),np.sqrt(d*J))
         #Xi = (grad_logp_K + dKdV)
         return Xi
 
@@ -329,9 +334,9 @@ class FSSD(GofTest):
 
         # mean/sd criterion 
         sigma_h1 = np.sqrt(u_variance + reg)
-        ratio = u_mean/sigma_h1 
+        ratio = old_div(u_mean,sigma_h1) 
         if use_2terms:
-            obj = -1.0/(np.sqrt(n)*sigma_h1) + np.sqrt(n)*ratio
+            obj = old_div(-1.0,(np.sqrt(n)*sigma_h1)) + np.sqrt(n)*ratio
             #print obj
         else:
             obj = ratio
@@ -361,8 +366,8 @@ class FSSD(GofTest):
         # Tau = Xi.reshape(n, d*J)
         Tau = np.reshape(Xi, [n, d*J])
         if use_unbiased:
-            t1 = np.sum(np.mean(Tau, 0)**2)*(n/float(n-1))
-            t2 = np.sum(np.mean(Tau**2, 0))/float(n-1)
+            t1 = np.sum(np.mean(Tau, 0)**2)*(old_div(n,float(n-1)))
+            t2 = old_div(np.sum(np.mean(Tau**2, 0)),float(n-1))
             # stat is the mean
             stat = t1 - t2
         else:
@@ -411,10 +416,10 @@ class FSSD(GofTest):
 
         Return a numpy array of simulated statistics.
         """
-        d = len(eigs)/J
+        d = old_div(len(eigs),J)
         assert d>0
         # draw at most d x J x block_size values at a time
-        block_size = max(20, int(1000.0/(d*J)))
+        block_size = max(20, int(old_div(1000.0,(d*J))))
         fssds = np.zeros(n_simulate)
         from_ind = 0
         with util.NumpySeedContext(seed=seed):
@@ -447,7 +452,7 @@ class FSSD(GofTest):
         X = dat.data()
         n_cand = len(list_kernel)
         objs = np.zeros(n_cand)
-        for i in xrange(n_cand):
+        for i in range(n_cand):
             ki = list_kernel[i]
             objs[i] = FSSD.power_criterion(p, dat, ki, test_locs)
             logging.info('(%d), obj: %5.4g, k: %s' %(i, objs[i], str(ki)))
@@ -611,7 +616,7 @@ class GaussFSSD(FSSD):
         # root
         x0_lb = np.hstack((np.sqrt(gwidth_lb), np.reshape(V_lb, -1)))
         x0_ub = np.hstack((np.sqrt(gwidth_ub), np.reshape(V_ub, -1)))
-        x0_bounds = zip(x0_lb, x0_ub)
+        x0_bounds = list(zip(x0_lb, x0_ub))
 
         # optimize. Time the optimization as well.
         # https://docs.scipy.org/doc/scipy/reference/optimize.minimize-lbfgsb.html
@@ -655,8 +660,8 @@ def bootstrapper_multinomial(n):
     """
     import warnings
     warnings.warn('Somehow bootstrapper_multinomial() does not give the right null distribution.')
-    M = np.random.multinomial(n, np.ones(n)/float(n), size=1) 
-    return M.reshape(-1) - 1.0/n
+    M = np.random.multinomial(n, old_div(np.ones(n),float(n)), size=1) 
+    return M.reshape(-1) - old_div(1.0,n)
 
 
 
@@ -770,7 +775,7 @@ class IMQFSSD(FSSD):
         V_lb = np.tile(X_min - locs_bounds_frac*X_std, (J, 1))
         V_ub = np.tile(X_max + locs_bounds_frac*X_std, (J, 1))
         # (J*d) x 2. 
-        x0_bounds = zip(V_lb.reshape(-1)[:, np.newaxis], V_ub.reshape(-1)[:, np.newaxis])
+        x0_bounds = list(zip(V_lb.reshape(-1)[:, np.newaxis], V_ub.reshape(-1)[:, np.newaxis]))
 
         # optimize. Time the optimization as well.
         # https://docs.scipy.org/doc/scipy/reference/optimize.minimize-lbfgsb.html
@@ -880,7 +885,7 @@ class IMQFSSD(FSSD):
         """
         x0_lb = np.hstack((np.sqrt(-b_ub), c_lb, np.reshape(V_lb, -1)))
         x0_ub = np.hstack((np.sqrt(-b_lb), c_ub, np.reshape(V_ub, -1)))
-        x0_bounds = zip(x0_lb, x0_ub)
+        x0_bounds = list(zip(x0_lb, x0_ub))
 
         # optimize. Time the optimization as well.
         # https://docs.scipy.org/doc/scipy/reference/optimize.minimize-lbfgsb.html
@@ -963,7 +968,7 @@ class KernelSteinTest(GofTest):
                 for i in range(n_simulate):
                    W = self.bootstrapper(n)
                    # n * [ (1/n^2) * \sum_i \sum_j h(x_i, x_j) w_i w_j ]
-                   boot_stat = W.dot(H.dot(W/float(n)))
+                   boot_stat = W.dot(H.dot(old_div(W,float(n))))
                    # This is a bootstrap version of n*V_n
                    sim_stats[i] = boot_stat
  
@@ -1058,7 +1063,7 @@ class LinearKernelSteinTest(GofTest):
 
             # H: length-n vector
             _, H = self.compute_stat(dat, return_pointwise_stats=True)
-            test_stat = np.sqrt(n/2)*np.mean(H)
+            test_stat = np.sqrt(old_div(n,2))*np.mean(H)
             stat_var = np.mean(H**2) 
             pvalue = stats.norm.sf(test_stat, loc=0, scale=np.sqrt(stat_var) )
  
@@ -1076,7 +1081,7 @@ class LinearKernelSteinTest(GofTest):
         n, d = X.shape
         k = self.k
         # Divide the sample into two halves of equal size. 
-        n_half = n/2
+        n_half = old_div(n,2)
         X1 = X[:n_half, :]
         # May throw away last sample
         X2 = X[n_half:(2*n_half), :]
