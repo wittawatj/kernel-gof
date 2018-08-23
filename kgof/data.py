@@ -11,7 +11,6 @@ from future.utils import with_metaclass
 __author__ = 'wittawat'
 
 from abc import ABCMeta, abstractmethod
-import math
 import autograd.numpy as np
 import kgof.util as util
 import scipy.stats as stats
@@ -114,10 +113,14 @@ class DataSource(with_metaclass(ABCMeta, object)):
         the input (n, seed)."""
         raise NotImplementedError()
 
-    #@abstractmethod
-    #def dim(self):
-    #    """Return the dimension of the data. """
-    #    raise NotImplementedError()
+    def dim(self):
+       """
+       Return the dimension of the data.  If possible, subclasses should
+       override this. Determining the dimension by sampling may not be
+       efficient, especially if the sampling relies on MCMC.
+       """
+       dat = self.sample(n=1, seed=3)
+       return dat.dim()
 
 #  end DataSource
 
@@ -216,6 +219,65 @@ class DSIsoGaussianMixture(DataSource):
             assert sample.shape[0] == n
             np.random.shuffle(sample)
         return Data(sample)
+
+# end of class DSIsoGaussianMixture
+
+class DSGaussianMixture(DataSource):
+    """
+    A DataSource implementing a Gaussian mixture in R^d where each component 
+    is an arbitrary Gaussian distribution.
+
+    Let k be the number of mixture components.
+    """
+    def __init__(self, means, variances, pmix=None):
+        """
+        means: a k x d 2d array specifying the means.
+        variances: a k x d x d numpy array containing k covariance matrices,
+            one for each component.
+        pmix: a one-dimensional length-k array of mixture weights. Sum to one.
+        """
+        k, d = means.shape
+        if k != variances.shape[0]:
+            raise ValueError('Number of components in means and variances do not match.')
+
+        if pmix is None:
+            pmix = old_div(np.ones(k),float(k))
+
+        if np.abs(np.sum(pmix) - 1) > 1e-8:
+            raise ValueError('Mixture weights do not sum to 1.')
+
+        self.pmix = pmix
+        self.means = means
+        self.variances = variances
+
+    def sample(self, n, seed=29):
+        pmix = self.pmix
+        means = self.means
+        variances = self.variances
+        k, d = self.means.shape
+        sam_list = []
+        with util.NumpySeedContext(seed=seed):
+            # counts for each mixture component 
+            counts = np.random.multinomial(n, pmix, size=1)
+
+            # counts is a 2d array
+            counts = counts[0]
+
+            # For each component, draw from its corresponding mixture component.            
+            for i, nc in enumerate(counts):
+                # construct the component
+                # https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.stats.multivariate_normal.html
+                cov = variances[i]
+                mnorm = stats.multivariate_normal(means[i], cov)
+                # Sample from ith component
+                sam_i = mnorm.rvs(size=nc)
+                sam_list.append(sam_i)
+            sample = np.vstack(sam_list)
+            assert sample.shape[0] == n
+            np.random.shuffle(sample)
+        return Data(sample)
+
+# end of DSGaussianMixture
 
 
 class DSLaplace(DataSource):
@@ -341,6 +403,10 @@ class DSGaussBernRBM(DataSource):
             return Data(X), H
         else:
             return Data(X)
+
+    def dim(self):
+        return self.B.shape[0]
+
 # end class DSGaussBernRBM
 
 class DSISIPoissonLinear(DataSource):
@@ -714,6 +780,9 @@ class DSResample(DataSource):
         dat = Data(self.X)
         return dat.subsample(n, seed=seed, return_ind = return_ind)
 
+    def dim(self):
+        return self.X.shape[1]
+
 # end class DSResample
 
 class DSGaussCosFreqs(DataSource):
@@ -766,6 +835,9 @@ class DSGaussCosFreqs(DataSource):
                 sam[from_ind:end_ind, :] = X_take
                 from_ind = end_ind
         return Data(sam)
+
+    def dim(self):
+        return len(self.freqs)
 
 
 

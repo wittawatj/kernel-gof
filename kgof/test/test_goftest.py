@@ -5,6 +5,7 @@ Module for testing goftest module.
 __author__ = 'wittawat'
 
 import numpy as np
+import numpy.testing as testing
 import matplotlib.pyplot as plt
 import kgof.data as data
 import kgof.density as density
@@ -167,6 +168,29 @@ class TestFSSD(unittest.TestCase):
 
     def tearDown(self):
         pass
+
+# end class TestFSSD
+
+class TestSteinWitness(unittest.TestCase):
+    def test_basic(self):
+        d = 3
+        p = density.IsotropicNormal(mean=np.zeros(d), variance=3.0)
+        q = density.IsotropicNormal(mean=np.zeros(d)+2, variance=3.0)
+        k = kernel.KGauss(2.0)
+
+        ds = q.get_datasource()
+        n = 97
+        dat = ds.sample(n, seed=3)
+
+        witness = gof.SteinWitness(p, k, dat)
+        # points to evaluate the witness
+        J = 4
+        V = np.random.randn(J, d)*2
+        evals = witness(V)
+
+        testing.assert_equal(evals.shape, (J, d))
+
+# end class TestSteinWitness
 
 
 if __name__ == '__main__':

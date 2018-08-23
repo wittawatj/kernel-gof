@@ -1,7 +1,14 @@
 """A module containing convenient methods for general machine learning"""
 from __future__ import print_function
 from __future__ import division
+from __future__ import unicode_literals
+from __future__ import absolute_import
 
+from builtins import zip
+from builtins import int
+from builtins import range
+from future import standard_library
+standard_library.install_aliases()
 from past.utils import old_div
 from builtins import object
 __author__ = 'wittawat'
@@ -54,6 +61,33 @@ class NumpySeedContext(object):
     def __exit__(self, *args):
         np.random.set_state(self.cur_state)
 
+# end NumpySeedContext
+
+class ChunkIterable(object):
+    """
+    Construct an Iterable such that each call to its iterator returns a tuple
+    of two indices (f, t) where f is the starting index, and t is the ending
+    index of a chunk. f and t are (chunk_size) apart except for the last tuple
+    which will always cover the rest.
+    """
+    def __init__(self, start, end, chunk_size):
+        self.start = start
+        self.end = end
+        self.chunk_size = chunk_size
+    
+    def __iter__(self):
+        s = self.start
+        e = self.end
+        c = self.chunk_size
+        # Probably not a good idea to use list. Waste memory.
+        L = list(range(s, e, c))
+        L.append(e)
+        return zip(L, L[1:])
+
+# end ChunkIterable
+
+def constrain(val, min_val, max_val):
+    return min(max_val, max(min_val, val))
 
 def dist_matrix(X, Y):
     """
@@ -147,11 +181,8 @@ def subsample_ind(n, k, seed=32):
     """
     Return a list of indices to choose k out of n without replacement
     """
-    rand_state = np.random.get_state()
-    np.random.seed(seed)
-
-    ind = np.random.choice(n, k, replace=False)
-    np.random.set_state(rand_state)
+    with NumpySeedContext(seed=seed):
+        ind = np.random.choice(n, k, replace=False)
     return ind
 
 def subsample_rows(X, k, seed=29):

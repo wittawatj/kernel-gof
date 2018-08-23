@@ -312,6 +312,7 @@ class FSSD(GofTest):
         #Xi = (grad_logp_K + dKdV)
         return Xi
 
+
     @staticmethod
     def power_criterion(p, dat, k, test_locs, reg=1e-2, use_unbiased=True, 
             use_2terms=False):
@@ -388,9 +389,6 @@ class FSSD(GofTest):
         Simulate the null distribution using the spectrums of the covariance
         matrix.  This is intended to be used to approximate the null
         distribution.
-
-        - features_x: n x Dx where Dx is the number of features for x 
-        - features_y: n x Dy
 
         Return (a numpy array of simulated n*FSSD values, eigenvalues of cov)
         """
@@ -628,7 +626,7 @@ class GaussFSSD(FSSD):
               tol=tol_fun, 
               options={
                   'maxiter': max_iter, 'ftol': tol_fun, 'disp': disp,
-                  'gtol': 1.0e-06,
+                  'gtol': 1.0e-07,
                   },
               jac=grad_obj,
             )
@@ -1105,4 +1103,68 @@ class LinearKernelSteinTest(GofTest):
             return stat, H
         else:
             return stat
+
+# end LinearKernelSteinTest
+
+class SteinWitness(object):
+    """
+    Construct a callable object representing the Stein witness function. 
+    The witness function g is defined as in Eq. 1 of 
+
+        A Linear-Time Kernel Goodness-of-Fit Test
+        Wittawat Jitkrittum, Wenkai Xu, Zoltan Szabo, Kenji Fukumizu,
+        Arthur Gretton
+        NIPS 2017
+
+    The witness function requires taking an expectation over the sample
+    generating distribution. This is approximated by an empirical
+    expectation using the sample in the input (dat). The witness function
+    is a d-variate (d = dimension of the data) function, which depends on 
+    the kernel k and the model p.
+
+    The constructed object can be called as if it is a function: (J x d) numpy
+    array |-> (J x d) outputs 
+    """
+    def __init__(self, p, k, dat):
+        """
+        :params p: an UnnormalizedDensity object
+        :params k: a DifferentiableKernel
+        :params dat: a kgof.data.Data
+        """
+        self.p = p
+        self.k = k
+        self.dat = dat
+
+    def __call__(self, V):
+        """
+        :params V: a numpy array of size J x d (data matrix)
+
+        :returns (J x d) numpy array representing witness evaluations at the J
+            points.
+        """
+        J = V.shape[0]
+        X = self.dat.data()
+        n, d = X.shape
+        # construct the feature tensor (n x d x J)
+        fssd = FSSD(self.p, self.k, V, null_sim=None, alpha=None)
+
+        # When X, V contain many points, this can use a lot of memory.
+        # Process chunk by chunk.
+        block_rows = util.constrain(50000//(d*J), 10, 5000)
+        avg_rows = []
+        for (f, t) in util.ChunkIterable(start=0, end=n, chunk_size=block_rows):
+            assert f<t
+            Xblock = X[f:t, :]
+            b = Xblock.shape[0]
+            F = fssd.feature_tensor(Xblock)
+            Tau = np.reshape(F, [b, d*J])
+            # witness evaluations computed on only a subset of data
+            avg_rows.append(Tau.mean(axis=0))
+
+        # an array of length d*J
+        witness_evals = (float(b)/n)*np.sum(np.vstack(avg_rows), axis=0)
+        assert len(witness_evals) == d*J
+        return np.reshape(witness_evals, [J, d])
+
+
 

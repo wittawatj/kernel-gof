@@ -88,21 +88,6 @@ def func_plot_fmt_map():
     return M
 
 
-def plot_2d_data(pdata):
-    """
-    pdata: an instance of PairedData
-    Return a figure handle
-    """
-    X, Y = pdata.xy()
-    n, d = X.shape 
-    if d != 2:
-        raise ValueError('d must be 2 to plot.') 
-    # plot
-    fig = plt.figure()
-    plt.plot(X, Y, 'ob')
-    plt.title(pdata.label)
-    return fig
-
 class PlotValues(object):
     """
     An object encapsulating values of a plot where there are many curves, 

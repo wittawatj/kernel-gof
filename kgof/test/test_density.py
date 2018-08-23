@@ -56,6 +56,23 @@ class TestIsotropicNormal(unittest.TestCase):
         pass
 
 
+class TestGaussianMixture(unittest.TestCase):
+
+    def test_multivariate_normal_density(self):
+        for i in range(4):
+            with util.NumpySeedContext(seed=i+8):
+                d = i + 2
+                cov = stats.wishart(df=10+d, scale=np.eye(d)).rvs(size=1)
+                mean = np.random.randn(d)
+                X = np.random.randn(11, d)
+                den_estimate = density.GaussianMixture.multivariate_normal_density(mean, cov, X)
+
+                mnorm = stats.multivariate_normal(mean=mean, cov=cov)
+                den_truth = mnorm.pdf(X)
+
+                np.testing.assert_almost_equal(den_estimate, den_truth)
+
+
 if __name__ == '__main__':
    unittest.main()
 
