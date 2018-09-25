@@ -7,3 +7,4 @@ KSD_goodness_of_fit/
 *.bak
 *.log
 *~
+*.egg-info
