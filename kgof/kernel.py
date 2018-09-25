@@ -31,7 +31,7 @@ class Kernel(with_metaclass(ABCMeta, object)):
     @abstractmethod
     def pair_eval(self, X, Y):
         """Evaluate k(x1, y1), k(x2, y2), ...
-        
+
         X: n x d where each row represents one point
         Y: n x d
         return a 1d numpy array of length n.
@@ -41,8 +41,8 @@ class Kernel(with_metaclass(ABCMeta, object)):
 
 class KSTKernel(with_metaclass(ABCMeta, Kernel)):
     """
-    Interface specifiying methods a kernel has to implement to be used with 
-    the Kernelized Stein discrepancy test of Chwialkowski et al., 2016 and 
+    Interface specifiying methods a kernel has to implement to be used with
+    the Kernelized Stein discrepancy test of Chwialkowski et al., 2016 and
     Liu et al., 2016 (ICML 2016 papers) See goftest.KernelSteinTest.
     """
 
@@ -78,18 +78,18 @@ class KSTKernel(with_metaclass(ABCMeta, Kernel)):
         evaluated at each x_i in X, and y_i in Y.
 
         X: nx x d numpy array.
-        Y: ny x d numpy array. 
+        Y: ny x d numpy array.
 
         Return a nx x ny numpy array of the derivatives.
         """
         raise NotImplementedError()
 
 # end KSTKernel
-    
+
 class LinearKSTKernel(with_metaclass(ABCMeta, Kernel)):
     """
-    Interface specifiying methods a kernel has to implement to be used with 
-    the linear-time version of Kernelized Stein discrepancy test of 
+    Interface specifiying methods a kernel has to implement to be used with
+    the linear-time version of Kernelized Stein discrepancy test of
     Liu et al., 2016 (ICML 2016).
     """
 
@@ -127,7 +127,7 @@ class LinearKSTKernel(with_metaclass(ABCMeta, Kernel)):
         evaluated at each x_i in X, and y_i in Y.
 
         X: n x d numpy array.
-        Y: n x d numpy array. 
+        Y: n x d numpy array.
 
         Return a one-dimensional length-n numpy array of the derivatives.
         """
@@ -158,7 +158,7 @@ class DifferentiableKernel(with_metaclass(ABCMeta, Kernel)):
 
 class KDiagGauss(Kernel):
     """
-    A Gaussian kernel with diagonal covariance structure i.e., one Gaussian 
+    A Gaussian kernel with diagonal covariance structure i.e., one Gaussian
     width for each dimension.
     """
     def __init__(self, sigma2s):
@@ -191,14 +191,14 @@ class KDiagGauss(Kernel):
 
 class KIMQ(DifferentiableKernel, KSTKernel):
     """
-    The inverse multiquadric (IMQ) kernel studied in 
+    The inverse multiquadric (IMQ) kernel studied in
 
-    Measure Sample Quality with Kernels 
+    Measure Sample Quality with Kernels
     Jackson Gorham, Lester Mackey
 
-    k(x,y) = (c^2 + ||x-y||^2)^b 
-    where c > 0 and b < 0. Following a theorem in the paper, this kernel is 
-    convergence-determining only when -1 < b < 0. In the experiments, 
+    k(x,y) = (c^2 + ||x-y||^2)^b
+    where c > 0 and b < 0. Following a theorem in the paper, this kernel is
+    convergence-determining only when -1 < b < 0. In the experiments,
     the paper sets b = -1/2 and c = 1.
     """
 
@@ -263,12 +263,12 @@ class KIMQ(DifferentiableKernel, KSTKernel):
 
     def gradXY_sum(self, X, Y):
         """
-        Compute 
+        Compute
         \sum_{i=1}^d \frac{\partial^2 k(X, Y)}{\partial x_i \partial y_i}
         evaluated at each x_i in X, and y_i in Y.
 
         X: nx x d numpy array.
-        Y: ny x d numpy array. 
+        Y: ny x d numpy array.
 
         Return a nx x ny numpy array of the derivatives.
         """
@@ -321,10 +321,10 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
     def gradX_Y(self, X, Y, dim):
         """
         Compute the gradient with respect to the dimension dim of X in k(X, Y).
- 
+
         X: nx x d
         Y: ny x d
- 
+
         Return a numpy array of size nx x ny.
         """
         sigma2 = self.sigma2
@@ -354,10 +354,10 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
     def gradY_X(self, X, Y, dim):
         """
         Compute the gradient with respect to the dimension dim of Y in k(X, Y).
- 
+
         X: nx x d
         Y: ny x d
- 
+
         Return a numpy array of size nx x ny.
         """
         return -self.gradX_Y(X, Y, dim)
@@ -376,12 +376,12 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
 
 
     def gradXY_sum(self, X, Y):
-        """
+        r"""
         Compute \sum_{i=1}^d \frac{\partial^2 k(X, Y)}{\partial x_i \partial y_i}
         evaluated at each x_i in X, and y_i in Y.
 
         X: nx x d numpy array.
-        Y: ny x d numpy array. 
+        Y: ny x d numpy array.
 
         Return a nx x ny numpy array of the derivatives.
         """
@@ -401,7 +401,7 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
         evaluated at each x_i in X, and y_i in Y.
 
         X: n x d numpy array.
-        Y: n x d numpy array. 
+        Y: n x d numpy array.
 
         Return a one-dimensional length-n numpy array of the derivatives.
         """
@@ -436,3 +436,295 @@ class KGauss(DifferentiableKernel, KSTKernel, LinearKSTKernel):
     def __str__(self):
         return "KGauss(%.3f)"%self.sigma2
 
+
+class KMixGauss(DifferentiableKernel, KSTKernel):
+    def __init__(self, sigma2s, wts=None):
+        """
+        Mixture of isotropic Gaussian kernels:
+          sum wts[i] * exp(- ||x - y||^2 / (2 * sigma2s[i]))
+
+        sigma2s: a list/array of squared bandwidths
+        wts: a list/array of weights. Defaults to equal weights summing to 1.
+        """
+        self.sigma2s = sigma2s = np.asarray(sigma2s)
+        assert len(sigma2s) > 0
+
+        if wts is None:
+            self.wts = wts = np.full(len(sigma2s), 1/len(sigma2s))
+        else:
+            self.wts = wts = np.asarray(wts)
+            assert len(wts) == len(sigma2s)
+            assert all(w >= 0 for w in wts)
+
+    def eval(self, X, Y):
+        """
+        Evaluate the kernel on data X and Y
+        X: nx x d where each row represents one point
+        Y: ny x d
+        return nx x ny Gram matrix
+        """
+        sumx2 = np.sum(X**2, axis=1)[:, np.newaxis]
+        sumy2 = np.sum(Y**2, axis=1)[np.newaxis, :]
+        D2 = sumx2 - 2 * np.dot(X, Y.T) + sumy2
+        return np.tensordot(
+            self.wts,
+            np.exp(
+                D2[np.newaxis, :, :]
+                / (-2 * self.sigma2s[:, np.newaxis, np.newaxis])),
+            1)
+
+    def pair_eval(self, X, Y):
+        """Evaluate k(x1, y1), k(x2, y2), ...
+
+        X: n x d where each row represents one point
+        Y: n x d
+        return a 1d numpy array of length n.
+        """
+        n1, d1 = X.shape
+        n2, d2 = Y.shape
+        assert n1 == n2, 'Two inputs must have the same number of instances'
+        assert d1 == d2, 'Two inputs must have the same dimension'
+        D2 = np.sum((X - Y)**2, axis=1)
+        return np.tensordot(
+            self.wts,
+            np.exp(D2[np.newaxis, :] / (-2 * self.sigma2s[:, np.newaxis])),
+            1)
+
+    def gradX_Y(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of X in k(X, Y).
+
+        X: nx x d
+        Y: ny x d
+
+        Return a numpy array of size nx x ny.
+        """
+        diffs = -X[:, [dim]] + Y[:, [dim]].T
+        exps = np.exp(diffs[np.newaxis, :, :] ** 2
+                      / (-2 * self.sigma2s[:, np.newaxis, np.newaxis]))
+        return np.einsum('w,wij,ij->ij', self.wts / self.sigma2s, exps, diffs)
+
+    def gradY_X(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of Y in k(X, Y).
+
+        X: nx x d
+        Y: ny x d
+
+        Return a numpy array of size nx x ny.
+        """
+        return -self.gradX_Y(X, Y, dim)
+
+    def gradXY_sum(self, X, Y):
+        r"""
+        Compute \sum_{i=1}^d \frac{\partial^2 k(x, Y)}{\partial x_i \partial y_i}
+        evaluated at each x_i in X, and y_i in Y.
+
+        X: nx x d numpy array.
+        Y: ny x d numpy array.
+
+        Return a nx x ny numpy array of the derivatives.
+        """
+        d = X.shape[1]
+        sumx2 = np.sum(X**2, axis=1)[:, np.newaxis]
+        sumy2 = np.sum(Y**2, axis=1)[np.newaxis, :]
+        D2 = sumx2 - 2 * np.dot(X, Y.T) + sumy2
+        s = (D2[np.newaxis, :, :] / self.sigma2s[:, np.newaxis, np.newaxis])
+        return np.einsum('w,wij,wij->ij',
+                         self.wts / self.sigma2s, np.exp(s / -2), d - s)
+
+
+class KPoly(DifferentiableKernel, KSTKernel):
+    def __init__(self, degree=3, gamma=None, coef0=1):
+        """
+        Polynomial kernel
+          (gamma X^T Y + coef0)^degree
+
+        degree: default 3
+        gamma: default 1/dim
+        coef0: float, default 1
+        """
+        self.degree = degree
+        self.gamma = gamma
+        self.coef0 = coef0
+
+    def eval(self, X, Y):
+        """
+        Evaluate the kernel on data X and Y
+        X: nx x d where each row represents one point
+        Y: ny x d
+        return nx x ny Gram matrix
+        """
+        dot = np.dot(X, Y.T)
+        gamma = 1/X.shape[1] if self.gamma is None else self.gamma
+        return (gamma * dot + self.coef0) ** self.degree
+
+    def pair_eval(self, X, Y):
+        """Evaluate k(x1, y1), k(x2, y2), ...
+
+        X: n x d where each row represents one point
+        Y: n x d
+        return a 1d numpy array of length n.
+        """
+        n1, d1 = X.shape
+        n2, d2 = Y.shape
+        assert n1 == n2, 'Two inputs must have the same number of instances'
+        assert d1 == d2, 'Two inputs must have the same dimension'
+
+        dot = np.einsum('id,id->i', X, Y)
+        gamma = 1/d1 if self.gamma is None else self.gamma
+        return (gamma * dot + self.coef0) ** self.degree
+
+    def gradX_Y(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of X in k(X, Y).
+
+        X: nx x d
+        Y: ny x d
+
+        Return a numpy array of size nx x ny.
+        """
+        gamma = 1/X.shape[1] if self.gamma is None else self.gamma
+        dot = np.dot(X, Y.T)
+        return (self.degree * (gamma * dot + self.coef0) ** (self.degree - 1)
+                * gamma * Y[np.newaxis, [dim]])
+
+    def gradY_X(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of Y in k(X, Y).
+
+        X: nx x d
+        Y: ny x d
+
+        Return a numpy array of size nx x ny.
+        """
+        gamma = 1/X.shape[1] if self.gamma is None else self.gamma
+        dot = np.dot(X, Y.T)
+        return (self.degree * (gamma * dot + self.coef0) ** (self.degree - 1)
+                * gamma * X[np.newaxis, [dim]])
+
+    def gradXY_sum(self, X, Y):
+        r"""
+        Compute \sum_{i=1}^d \frac{\partial^2 k(x, Y)}{\partial x_i \partial y_i}
+        evaluated at each x_i in X, and y_i in Y.
+
+        X: nx x d numpy array.
+        Y: ny x d numpy array.
+
+        Return a nx x ny numpy array of the derivatives.
+        """
+        gamma = 1/X.shape[1] if self.gamma is None else self.gamma
+        dot = np.dot(X, Y.T)
+        return (self.degree * (gamma * dot + self.coef0) ** (self.degree - 1)
+                * gamma * X.shape[1])
+
+
+class KMixture(KSTKernel, LinearKSTKernel, DifferentiableKernel):
+    def __init__(self, ks, wts=None):
+        self.ks = ks
+        if wts is None:
+            self.wts = np.full(len(ks), 1/len(ks))
+        else:
+            self.wts = np.asarray(wts)
+
+    def eval(self, X, Y):
+        """
+        Evaluate the kernel on data X and Y
+        X: nx x d where each row represents one point
+        Y: ny x d
+        return nx x ny Gram matrix
+        """
+        return sum(w * k.eval(X, Y) for w, k in zip(self.wts, self.ks))
+
+    def pair_eval(self, X, Y):
+        """Evaluate k(x1, y1), k(x2, y2), ...
+
+        X: n x d where each row represents one point
+        Y: n x d
+        return a 1d numpy array of length n.
+        """
+        return sum(w * k.pair_eval(X, Y) for w, k in zip(self.wts, self.ks))
+
+    def gradX_Y(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of X in k(X, Y).
+
+        X: nx x d
+        Y: ny x d
+
+        Return a numpy array of size nx x ny.
+        """
+        return sum(w * k.gradX_Y(X, Y, dim) for w, k in zip(self.wts, self.ks))
+
+    def gradY_X(self, X, Y, dim):
+        """
+        Compute the gradient with respect to the dimension dim of Y in k(X, Y).
+
+        X: nx x d
+        Y: ny x d
+
+        Return a numpy array of size nx x ny.
+        """
+        return sum(w * k.gradY_X(X, Y, dim) for w, k in zip(self.wts, self.ks))
+
+    def gradXY_sum(self, X, Y):
+        r"""
+        Compute \sum_{i=1}^d \frac{\partial^2 k(x, Y)}{\partial x_i \partial y_i}
+        evaluated at each x_i in X, and y_i in Y.
+
+        X: nx x d numpy array.
+        Y: ny x d numpy array.
+
+        Return a nx x ny numpy array of the derivatives.
+        """
+        return sum(w * k.gradXY_sum(X, Y) for w, k in zip(self.wts, self.ks))
+
+    def pair_gradX_Y(self, X, Y):
+        """
+        Compute the gradient with respect to X in k(X, Y), evaluated at the
+        specified X and Y.
+
+        X: n x d
+        Y: n x d
+
+        Return a numpy array of size n x d
+        """
+        return sum(w * k.pair_gradX_Y(X, Y) for w, k in zip(self.wts, self.ks))
+
+    def pair_gradY_X(self, X, Y):
+        """
+        Compute the gradient with respect to Y in k(X, Y), evaluated at the
+        specified X and Y.
+
+        X: n x d
+        Y: n x d
+
+        Return a numpy array of size n x d
+        """
+        return sum(w * k.pair_gradY_X(X, Y) for w, k in zip(self.wts, self.ks))
+
+    def pair_gradXY_sum(self, X, Y):
+        r"""
+        Compute \sum_{i=1}^d \frac{\partial^2 k(X, Y)}{\partial x_i \partial y_i}
+        evaluated at each x_i in X, and y_i in Y.
+
+        X: n x d numpy array.
+        Y: n x d numpy array.
+
+        Return a one-dimensional length-n numpy array of the derivatives.
+        """
+        return sum(w * k.pair_gradXY_sum(X, Y) for w, k in zip(self.wts, self.ks))
+
+    def gradX_y(self, X, y):
+        """
+        Compute the gradient with respect to X (the first argument of the
+        kernel). Base class provides a default autograd implementation for convenience.
+        Subclasses should override if this does not work.
+
+        X: nx x d numpy array.
+        y: numpy array of length d.
+
+        Return a numpy array G of size nx x d, the derivative of k(X, y) with
+        respect to X.
+        """
+        return sum(w * k.gradX_y(X, y) for w, k in zip(self.wts, self.ks))
