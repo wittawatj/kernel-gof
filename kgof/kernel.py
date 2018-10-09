@@ -547,6 +547,10 @@ class KPoly(DifferentiableKernel, KSTKernel):
         self.degree = degree
         self.gamma = gamma
         self.coef0 = coef0
+        if degree <= 0:
+            raise ValueError("KPoly needs positive degree")
+        if not np.allclose(degree, int(degree)):
+            raise ValueError("KPoly needs integral degree")
 
     def eval(self, X, Y):
         """
@@ -585,9 +589,14 @@ class KPoly(DifferentiableKernel, KSTKernel):
         Return a numpy array of size nx x ny.
         """
         gamma = 1/X.shape[1] if self.gamma is None else self.gamma
+
+        if self.degree == 1:  # optimization, other expression is valid too
+            out = gamma * Y[np.newaxis, :, dim]  # 1 x ny
+            return np.repeat(out, X.shape[0], axis=0)
+
         dot = np.dot(X, Y.T)
         return (self.degree * (gamma * dot + self.coef0) ** (self.degree - 1)
-                * gamma * Y[np.newaxis, [dim]])
+                * gamma * Y[np.newaxis, :, dim])
 
     def gradY_X(self, X, Y, dim):
         """
@@ -599,9 +608,14 @@ class KPoly(DifferentiableKernel, KSTKernel):
         Return a numpy array of size nx x ny.
         """
         gamma = 1/X.shape[1] if self.gamma is None else self.gamma
+
+        if self.degree == 1:  # optimization, other expression is valid too
+            out = gamma * X[:, dim, np.newaxis]  # nx x 1
+            return np.repeat(out, Y.shape[0], axis=1)
+
         dot = np.dot(X, Y.T)
         return (self.degree * (gamma * dot + self.coef0) ** (self.degree - 1)
-                * gamma * X[np.newaxis, [dim]])
+                * gamma * X[:, dim, np.newaxis])
 
     def gradXY_sum(self, X, Y):
         r"""
@@ -614,9 +628,18 @@ class KPoly(DifferentiableKernel, KSTKernel):
         Return a nx x ny numpy array of the derivatives.
         """
         gamma = 1/X.shape[1] if self.gamma is None else self.gamma
+
+        if self.degree == 1:  # optimization, other expression is valid too
+            return np.tile(gamma, (X.shape[0], X.shape[1]))
+
         dot = np.dot(X, Y.T)
-        return (self.degree * (gamma * dot + self.coef0) ** (self.degree - 1)
-                * gamma * X.shape[1])
+        inside = gamma * dot + self.coef0
+        to_dminus2 = inside ** (self.degree - 2)
+        to_dminus1 = to_dminus2 * inside
+        return (
+            (self.degree * (self.degree-1) * gamma**2) * to_dminus2 * dot
+            + (X.shape[1] * gamma * self.degree) * to_dminus1
+        )
 
 
 class KMixture(KSTKernel, LinearKSTKernel, DifferentiableKernel):
