@@ -6,12 +6,12 @@
 **UPDATE**: On 8th Mar 2018, we have updated the code to support Python 3 (with
 `futurize`). If you find any problem, please let us know. Thanks.
 
-This repository contains a Python 2.7 implementation of the nonparametric
+This repository contains a Python 2.7/3 implementation of the nonparametric
 linear-time goodness-of-fit test described in  [our paper](https://arxiv.org/abs/1705.07673)
 
     A Linear-Time Kernel Goodness-of-Fit Test
     Wittawat Jitkrittum, Wenkai Xu, Zoltan Szabo, Kenji Fukumizu, Arthur Gretton
-    NIPS 2017
+    NIPS 2017 (Best paper)
     https://arxiv.org/abs/1705.07673
 
 ## How to install?
