@@ -3,6 +3,9 @@
 [![Build Status](https://travis-ci.org/wittawatj/kernel-gof.svg?branch=master)](https://travis-ci.org/wittawatj/kernel-gof)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/wittawatj/kernel-gof/blob/master/LICENSE)
 
+**11th July 2019**: For an implementation of our test in Julia, see [this
+repository](https://github.com/torfjelde/KernelGoodnessOfFit.jl) by [Tor Erlend Fjelde](http://retiredparkingguard.com/).
+
 **UPDATE**: On 8th Mar 2018, we have updated the code to support Python 3 (with
 `futurize`). If you find any problem, please let us know. Thanks.
 
